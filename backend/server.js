@@ -72,6 +72,10 @@ function authorize(req, res, next) {
 // Routes
 
 // Registration route
+
+  app.get("/", (req, res) => {
+    res.send("Server is now running");
+  });
 app.post("/register", validInfo, async (req, res) => {
   const { email, Fname, Lname, password } = req.body;
 
