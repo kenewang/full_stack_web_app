@@ -13,7 +13,7 @@ const pool = new Pool({
   user: "postgres",
   password: process.env.DB_PASSWORD, // Use environment variable for sensitive data
   port: 5432,
-  database: "teach" //change this depending of the name of your database
+  database: "share2teach_db" //change this depending of the name of your database
 });
 
 // Middleware to validate input
@@ -151,6 +151,84 @@ app.post("/dashboard", authorize, async (req, res) => {
     res.status(500).send("Server error"); // Respond with a server error message if something goes wrong
   }
 });
+
+
+// ------------Develop basic CRUD operations for documents.[Kenewang]-------------
+
+// Create a new document
+ 
+// Create a new document
+app.post('/documents', async (req, res) => {
+  const { file_name, subject, grade, rating, storage_path, uploaded_by } = req.body; // Set default rating
+
+  try {
+      const result = await pool.query(
+          `INSERT INTO public."FILE" (file_name, subject, grade, rating, storage_path, uploaded_by) 
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+          [file_name, subject, grade, rating, storage_path, uploaded_by]
+      );
+      res.status(201).json({ msg: "File created succesfully" }); 
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all documents
+app.get('/documents', async (req, res) => {
+  try {
+      const result = await pool.query(`SELECT * FROM public."FILE"`);
+      res.status(200).json(result.rows); // Returns all documents
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+
+// Update a document
+app.put('/documents/:id', async (req, res) => {
+  const { id } = req.params;
+  const { file_name, subject, grade, storage_path } = req.body;
+
+  try {
+      const result = await pool.query(
+          `UPDATE public."FILE" 
+           SET file_name = $1, subject = $2, grade = $3, storage_path = $4 
+           WHERE file_id = $5 RETURNING *`,
+          [file_name, subject, grade, storage_path, id]
+      );
+
+      if (result.rows.length === 0) {
+          return res.status(404).json({ error: 'Document not found' });
+      }
+
+      res.status(200).json(result.rows[0]); // Returns the updated document
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a document
+app.delete('/documents/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+      const result = await pool.query(
+          `DELETE FROM public."FILE" WHERE file_id = $1 RETURNING *`,
+          [id]
+      );
+
+      if (result.rows.length === 0) {
+          return res.status(404).json({ error: 'Document not found' });
+      }
+
+      res.status(200).json({ message: 'Document deleted successfully' });
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 
 // Start server
 app.listen(3000, () => {
