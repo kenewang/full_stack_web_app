@@ -1,11 +1,18 @@
 const express = require("express");
-const app = express();
+const app = express(); //Initialize Express app
 app.use(express.json());
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const { Pool } = require("pg");
+
+const multer = require('multer');
+const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
+const util = require('util');
 
 // Database connection
 const pool = new Pool({
@@ -228,6 +235,84 @@ app.delete('/documents/:id', async (req, res) => {
 });
 
 
+//----------------------------------------------
+// Security middleware
+app.use(helmet());
+app.use(morgan('combined'));
+
+
+// Set up rate limiter for uploads
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: "Too many upload attempts from this IP, please try again later."
+});
+
+// Set upload directory (using environment variable for flexibility)
+const uploadDir = process.env.UPLOAD_DIR || './uploads/';
+
+
+// Function to sanitize file names
+function sanitizeFilename(filename) {
+  return filename.replace(/[^a-zA-Z0-9_\-.]/g, '_');
+}
+
+// Set up Multer storage engine
+const storage = multer.diskStorage({
+  destination: uploadDir,  // Set the destination folder for uploads
+  filename: function(req, file, cb) {
+      const sanitizedFilename = sanitizeFilename(file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+      cb(null, sanitizedFilename);  // Set the sanitized file name with extension
+  }
+});
+
+// Check file type
+function checkFileType(file, cb) {
+  // Allowed extensions
+  const filetypes = /pdf|doc|docx|xls|xlsx|ppt|pptx|txt/;
+  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+  const mimetype = filetypes.test(file.mimetype);
+
+  if (mimetype && extname) {
+    return cb(null, true);
+  } else {
+    console.log('File type error: Documents Only!');
+    cb('Error: Documents Only!');  // Pass error message to callback
+}
+}
+
+// Initialize upload with file validation
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 20 * 1024 * 1024 },  // Set file size limit to 20MB
+  fileFilter: function(req, file, cb) {
+      file.originalname = sanitizeFilename(file.originalname);  // Sanitize file name
+      checkFileType(file, cb);
+  }
+}).single('document');  // Specify the input field name
+
+// Convert upload function to a Promise-based one for async/await use
+const uploadAsync = util.promisify(upload);
+
+// Create a route to handle the file upload
+app.post('/upload', uploadLimiter, async (req, res) => {
+  try {
+      await uploadAsync(req, res);  // Await the upload process
+      if (!req.file) {
+          return res.status(400).send({ message: 'No file selected!' });
+      }
+      res.status(200).send({
+          message: 'Document uploaded!',
+          file: `uploads/${req.file.filename}`
+      });
+  } catch (err) {
+      console.log('Caught error:', err);  // Log the caught error for debugging
+      res.status(400).send({ message: err.message || err });  // Send the error message
+  }
+});
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 // Start server
