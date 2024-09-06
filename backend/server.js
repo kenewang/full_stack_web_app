@@ -23,39 +23,56 @@ const pool = new Pool({
   database: "share2teach_db" //change this depending of the name of your database
 });
 
+
 // Middleware to validate input
 function validInfo(req, res, next) {
   console.log("req.body:", req.body); // Log the incoming request body for debugging
-  const { email, password } = req.body;
+  const { email, password, Fname, Lname, username, role } = req.body;
 
   // Function to check if the email format is valid
   function validEmail(userEmail) {
     return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(userEmail);
   }
 
+  // Function to check if the role is valid
+  function validRole(userRole) {
+    const allowedRoles = ['admin', 'moderator', 'educator', 'open-access']; // Valid roles
+    return allowedRoles.includes(userRole);
+  }
+
   // Validation for registration route
   if (req.path === "/register") {
-    const { Fname, Lname } = req.body;
     // Check if all required fields are provided
-    if (![email, Fname, Lname, password].every(Boolean)) {
-      return res.status(400).json({ msg: "incomplete registration details" });
+    if (![email, Fname, Lname, username, password].every(Boolean)) {
+      return res.status(400).json({ msg: "Please provide all required fields: fname, lname, username, email, and password" });
+    }
+
     // Check if the provided email is valid
-    } else if (!validEmail(email)) {
+    if (!validEmail(email)) {
       return res.status(400).json({ msg: "Invalid Email" });
     }
+
+    
+  }
+
   // Validation for login route
-  } else if (req.path === "/login") {
+  else if (req.path === "/login") {
     // Check if both email and password are provided
     if (![email, password].every(Boolean)) {
-      return res.status(400).json({ msg: "incomplete login details" });
+      return res.status(400).json({ msg: "Please provide both email and password" });
+    }
+
     // Check if the provided email is valid
-    } else if (!validEmail(email)) {
+    if (!validEmail(email)) {
       return res.status(400).json({ msg: "Invalid Email" });
     }
   }
-  
+
   next(); // Proceed to the next middleware or route handler
 }
+
+
+
 
 // JWT (JSON Web Token) generation function
 function jwtGenerator(user_id) {
@@ -93,23 +110,25 @@ app.get("/", (req, res) => {
 
 // Registration route
 app.post("/register", validInfo, async (req, res) => {
-  const { email, Fname, Lname, password } = req.body;
+  const { email, Fname, Lname, username, password} = req.body;
 
   try {
     // Check if the user already exists in the database
-    const user = await pool.query("SELECT * FROM users WHERE user_email = $1", [email]);
+    const user = await pool.query("SELECT * FROM public.\"USER\" WHERE email = $1", [email]);
 
     if (user.rows.length > 0) {
-      return res.status(401).json({ msg: "User already available" }); // Respond if the user already exists
+      return res.status(401).json({ msg: "User already exists" }); // Respond if the user already exists
     }
 
     const salt = await bcrypt.genSalt(10); // Generate a salt for password hashing
     const bcryptPassword = await bcrypt.hash(password, salt); // Hash the user's password
 
-    // Insert the new user into the database
+    // Insert the new user into the "USER" table
     let newUser = await pool.query(
-      "INSERT INTO users (user_Fname, user_Lname, user_email, userpassword) VALUES ($1, $2, $3, $4) RETURNING *",
-      [Fname, Lname, email, bcryptPassword]
+      `INSERT INTO public."USER" 
+      (fname, lname, username, password_hash, email, is_active, role) 
+      VALUES ($1, $2, $3, $4, $5, $6, 'open-access') RETURNING *`,
+      [Fname, Lname, username, bcryptPassword, email, true]
     );
 
     const jwtToken = jwtGenerator(newUser.rows[0].user_id); // Generate a JWT token for the new user
@@ -120,32 +139,43 @@ app.post("/register", validInfo, async (req, res) => {
   }
 });
 
+
 // Login route
 app.post("/login", validInfo, async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Check if the user exists in the database
-    const user = await pool.query("SELECT * FROM users WHERE user_email = $1", [email]);
+    // Check if the user exists in the database by email
+    const user = await pool.query("SELECT * FROM public.\"USER\" WHERE email = $1", [email]);
 
     if (user.rows.length === 0) {
-      return res.status(401).json({ msg: "Invalid Credentials" }); // Respond if the user is not found
+      // Return a 401 Unauthorized response if the user does not exist
+      return res.status(401).json({ msg: "Invalid Credentials. User not found." });
     }
 
-    // Compare the provided password with the stored hashed password
-    const validPassword = await bcrypt.compare(password, user.rows[0].userpassword);
+    // Compare the provided password with the hashed password in the database
+    const validPassword = await bcrypt.compare(password, user.rows[0].password_hash);
 
     if (!validPassword) {
-      return res.status(401).json({ msg: "Invalid Credentials" }); // Respond if the password is incorrect
+      // Return a 401 Unauthorized response if the password is incorrect
+      return res.status(401).json({ msg: "Invalid Credentials. Incorrect password." });
     }
 
-    const jwtToken = jwtGenerator(user.rows[0].user_id); // Generate a JWT token for the user
-    return res.json({ jwtToken }); // Respond with the token
+    // Update the last_login field with the current timestamp
+    await pool.query("UPDATE public.\"USER\" SET last_login = NOW() WHERE user_id = $1", [user.rows[0].user_id]);
+
+    // Generate a JWT token for the user
+    const jwtToken = jwtGenerator(user.rows[0].user_id);
+    return res.json({ jwtToken }); // Send the JWT token back to the user
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error"); // Respond with a server error message if something goes wrong
+    // Return a 500 Internal Server Error if something goes wrong
+    res.status(500).send("Server error");
   }
 });
+
+
+
 
 // Dashboard route (to fetch user information)
 app.post("/dashboard", authorize, async (req, res) => {
