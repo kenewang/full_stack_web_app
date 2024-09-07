@@ -34,11 +34,7 @@ function validInfo(req, res, next) {
     return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(userEmail);
   }
 
-  // Function to check if the role is valid
-  function validRole(userRole) {
-    const allowedRoles = ['admin', 'moderator', 'educator', 'open-access']; // Valid roles
-    return allowedRoles.includes(userRole);
-  }
+
 
   // Validation for registration route
   if (req.path === "/register") {
@@ -194,15 +190,16 @@ app.post("/dashboard", authorize, async (req, res) => {
 
 // Create a new document
  
-// Create a new document
+// Create a new document 
 app.post('/documents', async (req, res) => {
-  const { file_name, subject, grade, rating, storage_path, uploaded_by } = req.body; // Set default rating
+  const { file_name, subject, grade, storage_path, uploaded_by } = req.body; // Set default rating
 
   try {
+    // Insert the new file with an initial rating of 0 
       const result = await pool.query(
           `INSERT INTO public."FILE" (file_name, subject, grade, rating, storage_path, uploaded_by) 
            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-          [file_name, subject, grade, rating, storage_path, uploaded_by]
+          [file_name, subject, grade, 0, storage_path, uploaded_by]
       );
       res.status(201).json({ msg: "File created succesfully" }); 
   } catch (err) {
@@ -405,6 +402,45 @@ app.post("/moderate-document", authorize, async (req, res) => {
     res.status(500).send("Server error");
   }
 });
+
+
+// Rating submission route  [Kenewang]
+app.post('/rate-file', authorize, async (req, res) => {
+  const { file_id, rating } = req.body;
+  const user_id = req.user.id;
+
+  try {
+    // Step 1: Check the status of the file
+    const file = await pool.query(
+      `SELECT status FROM public."FILE" WHERE file_id = $1`,
+      [file_id]
+    );
+
+    if (file.rows.length === 0) {
+      return res.status(404).json({ msg: "File not found" });
+    }
+
+    const fileStatus = file.rows[0].status;
+
+    // Step 2: Only allow rating if the file is approved
+    if (fileStatus !== 'approved') {
+      return res.status(403).json({ msg: "File cannot be rated until it is approved" });
+    }
+
+    // Step 3: Insert the rating if the file is approved
+    await pool.query(
+      `INSERT INTO public."RATING" (file_id, user_id, rating) 
+       VALUES ($1, $2, $3) RETURNING *`,
+      [file_id, user_id, rating]
+    );
+
+    res.status(201).json({ msg: "Rating submitted successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 
 
 
