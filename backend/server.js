@@ -344,13 +344,45 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 //----[kenewang] Implement moderation features for approving or rejecting documents -----
-
-
-
-
-
 //update the file’s status whenever the moderator makes a decision
 
+app.post("/moderate-document", authorize, async (req, res) => {
+  const { file_id, action, comments } = req.body;
+  const moderator_id = req.user.id;
+
+
+  if (!['approved', 'rejected'].includes(action)) {
+    return res.status(400).json({ msg: "Invalid action" });
+  }
+
+  try {
+    // Insert into MODERATION_HISTORY
+    await pool.query(
+      `INSERT INTO public."MODERATION_HISTORY" (file_id, moderator_id, action, comments) 
+       VALUES ($1, $2, $3, $4)`,
+      [file_id, moderator_id, action, comments]
+    );
+
+    // Update the file's status and return the updated file
+    const updateResult = await pool.query(
+      `UPDATE public."FILE" 
+       SET status = $1
+       WHERE file_id = $2
+       RETURNING *`,  // Return the updated file to confirm the update
+      [action, file_id]
+    );
+
+    // If no rows were updated, return an error
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ msg: "File not found or could not update status" });
+    }
+
+    res.status(200).json({ msg: "Document moderated successfully", updatedFile: updateResult.rows[0] });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
 
 
 
