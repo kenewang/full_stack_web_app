@@ -347,61 +347,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 
-app.post("/moderate-document", authorize, async (req, res) => {
-  const { file_id, action, comments } = req.body;
-  const moderator_id = req.user.id; // Get the moderator's user ID from the authorization middleware
 
-  if (!['approved', 'rejected'].includes(action)) {
-    return res.status(400).json({ msg: "Invalid action" });
-  }
-
-  try {
-    // Insert into MODERATION_HISTORY table
-    await pool.query(
-      `INSERT INTO public."MODERATION_HISTORY" (file_id, moderator_id, action, comments) 
-       VALUES ($1, $2, $3, $4)`,
-      [file_id, moderator_id, action, comments]
-    );
-
-    res.status(200).json({ msg: "Document moderated successfully" });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
-  }
-});
 
 //update the file’s status whenever the moderator makes a decision
 
-app.post("/moderate-document", authorize, async (req, res) => {
-  const { file_id, action, comments } = req.body;
-  const moderator_id = req.user.id;
 
-  if (!['approved', 'rejected'].includes(action)) {
-    return res.status(400).json({ msg: "Invalid action" });
-  }
-
-  try {
-    // Insert into MODERATION_HISTORY
-    await pool.query(
-      `INSERT INTO public."MODERATION_HISTORY" (file_id, moderator_id, action, comments) 
-       VALUES ($1, $2, $3, $4)`,
-      [file_id, moderator_id, action, comments]
-    );
-
-    // Update the file's status
-    await pool.query(
-      `UPDATE public."FILE" 
-       SET status = $1
-       WHERE file_id = $2`,
-      [action, file_id]
-    );
-
-    res.status(200).json({ msg: "Document moderated successfully" });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
-  }
-});
 
 
 // Rating submission route  [Kenewang]
