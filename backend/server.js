@@ -1,3 +1,15 @@
+//----20 Sep -------------------------------
+const axios = require('axios'); // Import axios
+
+const FormData = require('form-data'); // Import FormData to handle multipart data
+
+const fs = require('fs');
+
+
+//------------------------------------------
+
+
+
 const express = require("express");
 const app = express(); //Initialize Express app
 app.use(express.json());
@@ -188,24 +200,9 @@ app.post("/dashboard", authorize, async (req, res) => {
 
 // ------------Develop basic CRUD operations for documents.[Kenewang]-------------
 
-// Create a new document
- 
-// Create a new document 
-app.post('/documents', async (req, res) => {
-  const { file_name, subject, grade, storage_path, uploaded_by } = req.body; // Set default rating
 
-  try {
-    // Insert the new file with an initial rating of 0 
-      const result = await pool.query(
-          `INSERT INTO public."FILE" (file_name, subject, grade, rating, storage_path, uploaded_by) 
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-          [file_name, subject, grade, 0, storage_path, uploaded_by]
-      );
-      res.status(201).json({ msg: "File created succesfully" }); 
-  } catch (err) {
-      res.status(500).json({ error: err.message });
-  }
-});
+ 
+
 
 // Get all documents
 app.get('/documents', async (req, res) => {
@@ -269,6 +266,10 @@ app.use(morgan('combined'));
 
 
 
+
+
+
+//-----20 Sep Document Creationg and upload to Seaweedfs ----------------
 // Set up rate limiter for uploads
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -276,28 +277,14 @@ const uploadLimiter = rateLimit({
   message: "Too many upload attempts from this IP, please try again later."
 });
 
-// Set upload directory (using environment variable for flexibility)
-const uploadDir = process.env.UPLOAD_DIR || './uploads/';
-
-
 // Function to sanitize file names
 function sanitizeFilename(filename) {
   return filename.replace(/[^a-zA-Z0-9_\-.]/g, '_');
 }
 
-// Set up Multer storage engine
-const storage = multer.diskStorage({
-  destination: uploadDir,  // Set the destination folder for uploads
-  filename: function(req, file, cb) {
-      const sanitizedFilename = sanitizeFilename(file.fieldname + '-' + Date.now() + path.extname(file.originalname));
-      cb(null, sanitizedFilename);  // Set the sanitized file name with extension
-  }
-});
-
-// Check file type
+// Check file type for allowed extensions
 function checkFileType(file, cb) {
-  // Allowed extensions
-  const filetypes = /pdf|doc|docx|xls|xlsx|ppt|pptx|txt/;
+  const filetypes = /pdf|doc|docx|xls|xlsx|ppt|pptx|txt/; // Allowed extensions
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = filetypes.test(file.mimetype);
 
@@ -306,43 +293,79 @@ function checkFileType(file, cb) {
   } else {
     console.log('File type error: Documents Only!');
     cb('Error: Documents Only!');  // Pass error message to callback
-}
+  }
 }
 
-// Initialize upload with file validation
+// Multer setup without local storage, just validation
+const storage = multer.memoryStorage(); // Store in memory buffer, not locally
 const upload = multer({
   storage: storage,
   limits: { fileSize: 20 * 1024 * 1024 },  // Set file size limit to 20MB
   fileFilter: function(req, file, cb) {
-      file.originalname = sanitizeFilename(file.originalname);  // Sanitize file name
-      checkFileType(file, cb);
+    file.originalname = sanitizeFilename(file.originalname);  // Sanitize file name
+    checkFileType(file, cb);  // Check file type
   }
-}).single('document');  // Specify the input field name
+}).single('file');  // Specify the input field name for file upload
 
-// Convert upload function to a Promise-based one for async/await use
+// Convert Multer to Promise-based for async/await
 const uploadAsync = util.promisify(upload);
 
-// Create a route to handle the file upload
-app.post('/upload', uploadLimiter, async (req, res) => {
+// Upload file to SeaweedFS and create a document
+app.post('/documents', uploadLimiter, async (req, res) => {
   try {
-      await uploadAsync(req, res);  // Await the upload process
-      if (!req.file) {
-          return res.status(400).send({ message: 'No file selected!' });
-      }
-      res.status(200).send({
-          message: 'Document uploaded!',
-          file: `uploads/${req.file.filename}`
-      });
+    // Step 1: Perform the file upload using multer (stored in memory)
+    await uploadAsync(req, res);
+    if (!req.file) {
+      return res.status(400).send({ message: 'No file selected!' });
+    }
+
+    // Step 2: Create FormData and append the file for SeaweedFS upload
+    const formData = new FormData();
+    formData.append('file', req.file.buffer, req.file.originalname); // Use file from memory
+
+    // Step 3: Send the file to SeaweedFS
+    const seaweedResponse = await axios.post('http://localhost:9333/submit', formData, {
+      headers: formData.getHeaders() // Set the headers for multipart/form-data
+    });
+
+    //Log the full SeaweedFS response to check its structure
+    console.log(seaweedResponse.data); // 
+
+   //Extract the fileUrl and ensure it's properly formatted
+    let storagePath = seaweedResponse.data.fileUrl;
+
+    // Ensure the storage path has the correct protocol (SeaweedFS response lacks "http://")
+    if (!storagePath.startsWith('http')) {
+      storagePath = `http://${storagePath}`;
+    }
+
+    // Check if storagePath is correctly set
+
+    if (!storagePath) {
+      return res.status(500).json({ message: "Failed to get storage path from SeaweedFS" });
+    }
+
+    // Step 5: Get the document details from the request body
+    const { file_name, subject, grade, uploaded_by } = req.body;
+
+    // Step 6: Insert the new file with an initial rating of 0 and the SeaweedFS storage path
+    const result = await pool.query(
+      `INSERT INTO public."FILE" (file_name, subject, grade, rating, storage_path, uploaded_by) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [file_name, subject, grade, 0, storagePath, uploaded_by]
+    );
+
+    // Step 7: Return a success message
+    res.status(201).json({ msg: "File uploaded and document created successfully", file: result.rows[0] });
+
   } catch (err) {
-      console.log('Caught error:', err);  // Log the caught error for debugging
-      res.status(400).send({ message: err.message || err });  // Send the error message
+    console.log('Caught error:', err);  // Log the caught error for debugging
+    res.status(500).send({ message: err.message || err });  // Send the error message
   }
 });
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-
+//--------------------------------------------------------------------------
 
 //----[kenewang] Implement moderation features for approving or rejecting documents -----
 //update the file’s status whenever the moderator makes a decision
