@@ -399,6 +399,79 @@ app.post('/documents', uploadLimiter, async (req, res) => {
 
 //--------------------------------------------------------------------------
 
+
+//------------------21 Sep [Searching]--------------------------------------------
+// Search documents by file_name, subject, grade, rating, uploaded_by, status, and keywords
+app.get('/search-documents', async (req, res) => {
+  const { file_name, subject, grade, rating, uploaded_by, status, keywords } = req.query;
+
+  try {
+    // Build the query with dynamic filters
+    let query = `
+      SELECT DISTINCT f.*
+      FROM public."FILE" f
+      LEFT JOIN public."FILE_KEYWORD" fk ON f.file_id = fk.file_id
+      LEFT JOIN public."KEYWORD" k ON fk.keyword_id = k.keyword_id
+      WHERE 1 = 1
+    `;
+
+    const values = [];
+    let valueIndex = 1;
+
+    if (file_name) {
+      query += ` AND f.file_name ILIKE $${valueIndex++}`;
+      values.push(`%${file_name}%`);
+    }
+    
+    if (subject) {
+      query += ` AND f.subject = $${valueIndex++}`;
+      values.push(subject);
+    }
+
+    if (grade) {
+      query += ` AND f.grade = $${valueIndex++}`;
+      values.push(grade);
+    }
+
+    if (rating) {
+      query += ` AND f.rating >= $${valueIndex++}`;
+      values.push(rating);
+    }
+
+    if (uploaded_by) {
+      query += ` AND f.uploaded_by = $${valueIndex++}`;
+      values.push(uploaded_by);
+    }
+
+    if (status) {
+      query += ` AND f.status = $${valueIndex++}`;
+      values.push(status);
+    }
+
+    if (keywords) {
+      const keywordList = keywords.split(',').map(k => k.trim());
+      query += ` AND k.keyword ILIKE ANY($${valueIndex++})`;
+      values.push(keywordList.map(kw => `%${kw}%`)); // Search for any keyword
+    }
+
+    // Execute the query
+    const result = await pool.query(query, values);
+    res.status(200).json(result.rows); // Return the filtered documents
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+//---------------------------------------------------------------------------
+
+
+
+
+
+
 //----[kenewang] Implement moderation features for approving or rejecting documents -----
 //update the file’s status whenever the moderator makes a decision
 
