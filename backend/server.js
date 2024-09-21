@@ -269,8 +269,9 @@ app.use(morgan('combined'));
 
 
 
-//-----20 Sep Document Creationg and upload to Seaweedfs ----------------
+//-----21 Sep Document Creationg and upload to Seaweedfs ----------------
 // Set up rate limiter for uploads
+
 const uploadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
@@ -310,7 +311,25 @@ const upload = multer({
 // Convert Multer to Promise-based for async/await
 const uploadAsync = util.promisify(upload);
 
-// Upload file to SeaweedFS and create a document
+// Helper function to upsert keywords (insert if not exists, otherwise retrieve existing ones)
+async function upsertKeywords(pool, keywords) {
+  const keywordIds = [];
+
+  for (const keyword of keywords) {
+    let result = await pool.query('SELECT keyword_id FROM public."KEYWORD" WHERE keyword = $1', [keyword]);
+
+    if (result.rows.length === 0) {
+      // If keyword doesn't exist, insert it
+      result = await pool.query('INSERT INTO public."KEYWORD" (keyword) VALUES ($1) RETURNING keyword_id', [keyword]);
+    }
+
+    keywordIds.push(result.rows[0].keyword_id); // Store the keyword_id
+  }
+
+  return keywordIds;
+}
+
+// Upload file to SeaweedFS, handle keywords, and create a document
 app.post('/documents', uploadLimiter, async (req, res) => {
   try {
     // Step 1: Perform the file upload using multer (stored in memory)
@@ -331,7 +350,7 @@ app.post('/documents', uploadLimiter, async (req, res) => {
     //Log the full SeaweedFS response to check its structure
     console.log(seaweedResponse.data); // 
 
-   //Extract the fileUrl and ensure it's properly formatted
+    // Extract the fileUrl and ensure it's properly formatted
     let storagePath = seaweedResponse.data.fileUrl;
 
     // Ensure the storage path has the correct protocol (SeaweedFS response lacks "http://")
@@ -340,29 +359,42 @@ app.post('/documents', uploadLimiter, async (req, res) => {
     }
 
     // Check if storagePath is correctly set
-
     if (!storagePath) {
       return res.status(500).json({ message: "Failed to get storage path from SeaweedFS" });
     }
 
-    // Step 5: Get the document details from the request body
-    const { file_name, subject, grade, uploaded_by } = req.body;
+    // Step 4: Get the document details and keywords from the request body
+    const { file_name, subject, grade, uploaded_by, keywords } = req.body;
 
-    // Step 6: Insert the new file with an initial rating of 0 and the SeaweedFS storage path
-    const result = await pool.query(
+    // Step 5: Insert the new file with an initial rating of 0 and the SeaweedFS storage path
+    const fileResult = await pool.query(
       `INSERT INTO public."FILE" (file_name, subject, grade, rating, storage_path, uploaded_by) 
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [file_name, subject, grade, 0, storagePath, uploaded_by]
     );
 
-    // Step 7: Return a success message
-    res.status(201).json({ msg: "File uploaded and document created successfully", file: result.rows[0] });
+    const fileId = fileResult.rows[0].file_id;
+
+    // Step 6: Upsert (insert or find existing) keywords
+    const keywordList = keywords.split(',').map(k => k.trim()); // Convert comma-separated string to array
+    const keywordIds = await upsertKeywords(pool, keywordList); // Get keyword_ids
+
+    // Step 7: Insert into the file_keyword table to link file and keywords
+    for (const keywordId of keywordIds) {
+      await pool.query('INSERT INTO public."FILE_KEYWORD" (file_id, keyword_id) VALUES ($1, $2)', [fileId, keywordId]);
+    }
+
+    // Step 8: Return a success message
+    res.status(201).json({ msg: "File uploaded, document created, and keywords linked successfully", file: fileResult.rows[0] });
 
   } catch (err) {
     console.log('Caught error:', err);  // Log the caught error for debugging
     res.status(500).send({ message: err.message || err });  // Send the error message
   }
 });
+
+
+
 
 
 //--------------------------------------------------------------------------
@@ -448,7 +480,7 @@ app.post('/rate-file', authorize, async (req, res) => {
 });
 
 
-//demonstrate to tshepi
+
 
 // Start server
 app.listen(3000, () => {
