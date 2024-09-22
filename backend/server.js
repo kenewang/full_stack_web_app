@@ -39,7 +39,7 @@ const pool = new Pool({
 // Middleware to validate input
 function validInfo(req, res, next) {
   console.log("req.body:", req.body); // Log the incoming request body for debugging
-  const { email, password, Fname, Lname, username, role } = req.body;
+  const { email, password} = req.body;
 
   // Function to check if the email format is valid
   function validEmail(userEmail) {
@@ -83,15 +83,17 @@ function validInfo(req, res, next) {
 
 
 // JWT (JSON Web Token) generation function
-function jwtGenerator(user_id) {
+function jwtGenerator(user) {
   const payload = {
     user: {
-      id: user_id // Store the user's ID in the token payload
+      id: user.user_id,  // Make sure this is the correct field name
+      email: user.email, // Add email or any other information if necessary
     }
   };
   // Sign and return the token with an expiration time of 1 hour
   return jwt.sign(payload, process.env.jwtSecret, { expiresIn: "1h" });
 }
+
 
 // Authorization middleware to protect routes
 function authorize(req, res, next) {
@@ -102,6 +104,7 @@ function authorize(req, res, next) {
 
   try {
     const verify = jwt.verify(token, process.env.jwtSecret); // Verify the token
+    console.log("Decoded Token:", verify); // Add this to check the decoded token
     req.user = verify.user; // Attach the user info from the token to the request object
     next(); // Proceed to the next middleware or route handler
   } catch (err) {
@@ -150,7 +153,7 @@ app.post("/register", validInfo, async (req, res) => {
 
 // Login route
 app.post("/login", validInfo, async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password} = req.body;
 
   try {
     // Check if the user exists in the database by email
@@ -173,8 +176,10 @@ app.post("/login", validInfo, async (req, res) => {
     await pool.query("UPDATE public.\"USER\" SET last_login = NOW() WHERE user_id = $1", [user.rows[0].user_id]);
 
     // Generate a JWT token for the user
-    const jwtToken = jwtGenerator(user.rows[0].user_id);
+    const jwtToken = jwtGenerator(user.rows[0]);
     return res.json({ jwtToken }); // Send the JWT token back to the user
+    console.log("User Object during Token Generation:", user.rows[0]);
+
   } catch (err) {
     console.error(err.message);
     // Return a 500 Internal Server Error if something goes wrong
@@ -551,6 +556,43 @@ app.post('/rate-file', authorize, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
+//---document reporting [aadil] modified by [kenewang] 22 Sep ---------------------------------
+
+app.post('/report-document', authorize, async (req, res) => {
+  const { file_id, reason } = req.body;
+  let reporter_id = null; // Default is null for anonymous users
+
+  // Check if the user is logged in (using the authorization middleware)
+  if (req.user) {
+    reporter_id = req.user.id;  // Get the reporter's user ID if logged in
+  }
+  console.log("Reporter ID:", req.user ? req.user.id : "Anonymous");
+
+  try {
+    // Insert a new report into the database
+    await pool.query(
+      `INSERT INTO public."REPORT" (file_id, reporter_id, reason, status)
+       VALUES ($1, $2, $3, 'pending')`,
+      [file_id, reporter_id, reason]
+    );
+
+    res.status(201).json({ msg: "Report submitted successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+
+
+
+
+
+//----------------------------------------------------------------------------
+
+
 
 
 
