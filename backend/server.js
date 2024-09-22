@@ -39,7 +39,7 @@ const pool = new Pool({
 // Middleware to validate input
 function validInfo(req, res, next) {
   console.log("req.body:", req.body); // Log the incoming request body for debugging
-  const { email, password} = req.body;
+  const {email, password, Fname, Lname, username} = req.body;
 
   // Function to check if the email format is valid
   function validEmail(userEmail) {
@@ -88,6 +88,7 @@ function jwtGenerator(user) {
     user: {
       id: user.user_id,  // Make sure this is the correct field name
       email: user.email, // Add email or any other information if necessary
+      role: user.role  // Add the user's role to the token payload
     }
   };
   // Sign and return the token with an expiration time of 1 hour
@@ -118,6 +119,8 @@ function authorize(req, res, next) {
 app.get("/", (req, res) => {
   res.send("Server is now running");
 });
+
+
 
 // Registration route
 app.post("/register", validInfo, async (req, res) => {
@@ -186,6 +189,44 @@ app.post("/login", validInfo, async (req, res) => {
     res.status(500).send("Server error");
   }
 });
+
+
+
+//-------------------------22 Sep ----------------------------
+
+
+// Route for admin to assign user roles
+app.put('/admin/assign-role', authorize, async (req, res) => {
+  const { user_id, role } = req.body;
+  console.log("User Role:", req.user.role);  // Add this to log the role from the JWT
+
+  try {
+    // Check if the logged-in user is an admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ msg: "Access denied. Only admins can assign roles." });
+    }
+
+    // Update the user's role
+    const result = await pool.query(
+      `UPDATE public."USER" SET role = $1 WHERE user_id = $2 RETURNING *`,
+      [role, user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.status(200).json({ msg: `User role updated to ${role}`, user: result.rows[0] });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+
+
+
+//---------------------------------------------------------------
 
 
 
@@ -585,6 +626,68 @@ app.post('/report-document', authorize, async (req, res) => {
   }
 });
 
+
+
+// Get all pending reports (for moderators)
+app.get('/reports', authorize, async (req, res) => {
+  try {
+    // Check if the logged-in user is a moderator
+    if (req.user.role !== 'moderator') {
+      return res.status(403).json({ msg: "Access denied. Only moderators can view reports." });
+    }
+
+    // Fetch all pending reports
+    const result = await pool.query(`
+      SELECT r.report_id, r.file_id, r.reason, r.status, r.created_at, u.fname AS reporter_fname, u.lname AS reporter_lname
+      FROM public."REPORT" r
+      LEFT JOIN public."USER" u ON r.reporter_id = u.user_id
+      WHERE r.status = 'pending'
+      ORDER BY r.created_at DESC
+    `);
+
+    res.status(200).json(result.rows); // Return all pending reports
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+
+
+// Moderate a report (approve or reject)
+app.post('/moderate-report', authorize, async (req, res) => {
+  const { report_id, action } = req.body;
+
+  // Ensure only valid actions are taken
+  if (!['resolved', 'rejected'].includes(action)) {
+    return res.status(400).json({ msg: "Invalid action. Use 'resolved' or 'rejected'." });
+  }
+
+  try {
+    // Check if the logged-in user is a moderator
+    if (req.user.role !== 'moderator') {
+      return res.status(403).json({ msg: "Access denied. Only moderators can moderate reports." });
+    }
+
+    // Update the status of the report
+    const result = await pool.query(`
+      UPDATE public."REPORT"
+      SET status = $1
+      WHERE report_id = $2
+      RETURNING *
+    `, [action, report_id]);
+
+    // Check if the report was found
+    if (result.rows.length === 0) {
+      return res.status(404).json({ msg: "Report not found." });
+    }
+
+    res.status(200).json({ msg: `Report has been ${action}.`, report: result.rows[0] });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
 
 
 
