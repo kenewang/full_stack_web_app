@@ -1,12 +1,21 @@
 //----20 Sep -------------------------------
 const axios = require('axios'); // Import axios
-
 const FormData = require('form-data'); // Import FormData to handle multipart data
-
 const fs = require('fs');
-
-
 //------------------------------------------
+
+
+//-----23 Sep-----------------------------
+const stream = require('stream');
+
+const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+
+const { Document, Packer, Paragraph, Footer, AlignmentType, TextRun } = require('docx');
+
+const PizZip = require('pizzip');
+const Docxtemplater = require('docxtemplater');
+
+//-------------------------------------------
 
 
 
@@ -261,17 +270,27 @@ app.get('/documents', async (req, res) => {
 });
 
 
-// Update a document
-app.put('/documents/:id', async (req, res) => {
+// Update a document  [modified on 23 Sep by Kenewang]
+app.put('/documents/:id', authorize, async (req, res) => {
   const { id } = req.params;
-  const { file_name, subject, grade, storage_path } = req.body;
+  const { file_name, subject, grade} = req.body;
 
   try {
+
+    // Check if the user has the correct role
+    allowedRoles = ['admin', 'moderator', 'educator'];
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+
+
       const result = await pool.query(
           `UPDATE public."FILE" 
-           SET file_name = $1, subject = $2, grade = $3, storage_path = $4 
-           WHERE file_id = $5 RETURNING *`,
-          [file_name, subject, grade, storage_path, id]
+           SET file_name = $1, subject = $2, grade = $3
+           WHERE file_id = $4 RETURNING *`,
+          [file_name, subject, grade, id]
       );
 
       if (result.rows.length === 0) {
@@ -284,11 +303,21 @@ app.put('/documents/:id', async (req, res) => {
   }
 });
 
-// Delete a document
-app.delete('/documents/:id', async (req, res) => {
+
+// Delete a document  modified by kenewang on 23 Sep
+app.delete('/documents/:id', authorize, async (req, res) => {
   const { id } = req.params;
 
   try {
+
+    
+    // Check if the user has the correct role
+    allowedRoles = ['admin', 'moderator', 'educator'];
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
       const result = await pool.query(
           `DELETE FROM public."FILE" WHERE file_id = $1 RETURNING *`,
           [id]
@@ -311,6 +340,96 @@ app.use(helmet());
 app.use(morgan('combined'));
 
 
+
+//----------23 Sep----------------------------------------------
+
+
+
+
+// Function to add a watermark to the PDF (at the middle footer)
+async function addWatermarkToPDF(pdfBuffer) {
+  // Load the PDF document from the provided buffer
+  const pdfDoc = await PDFDocument.load(pdfBuffer);
+  const pages = pdfDoc.getPages();
+
+  // Embed the standard font to use for the watermark
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  // Define the watermark text and its properties
+  const watermarkText = 'Share2Teach License - CC BY-NC-ND 4.0';
+  const fontSize = 12;
+  const marginBottom = 20;  // Distance from the bottom of the page
+
+  // Iterate through all pages to add the watermark
+  for (const page of pages) {
+    const { width } = page.getSize();  // Get page dimensions
+
+    // Calculate the width of the text using the embedded font and the font size
+    const textWidth = font.widthOfTextAtSize(watermarkText, fontSize);
+    const x = (width - textWidth) / 2;  // Center horizontally
+
+    // Define the y-coordinate for placing the text at the footer (bottom)
+    const y = marginBottom;  // 20 units above the bottom
+
+    // Draw the watermark text on the page at the calculated position
+    page.drawText(watermarkText, {
+      x,
+      y,
+      size: fontSize,
+      font: font,  // Use the embedded font
+      color: rgb(0.5, 0.5, 0.5),  // Light grey color
+    });
+  }
+
+  // Save the modified PDF to a buffer and return it
+  const modifiedPdfBuffer = await pdfDoc.save();
+  return modifiedPdfBuffer;
+}
+
+module.exports = addWatermarkToPDF;
+
+
+
+
+
+
+// Function to add watermark to DOCX
+
+
+// Function to add watermark to DOCX
+async function addWatermarkToDocx(buffer) {
+  try {
+    // Load the docx file from the buffer instead of reading from the file system
+    const zip = new PizZip(buffer);
+    const doc = new Docxtemplater(zip);
+
+    // Replace the placeholder with the watermark text
+    doc.setData({
+      watermark: 'Share2Teach License - CC BY-NC-ND 4.0',  // This will replace {watermark} in the document
+    });
+
+    // Render the changes (apply the watermark)
+    doc.render();
+
+    // Generate the modified docx file as a Buffer
+    const updatedBuffer = doc.getZip().generate({ type: 'nodebuffer' });
+    return updatedBuffer;
+  } catch (error) {
+    console.error("Error adding watermark to DOCX:", error);
+    throw error;
+  }
+}
+
+module.exports = addWatermarkToDocx;
+
+
+
+
+
+
+
+
+//--------------------------------------------------------------------------------
 
 
 
@@ -376,70 +495,86 @@ async function upsertKeywords(pool, keywords) {
 }
 
 // Upload file to SeaweedFS, handle keywords, and create a document
-app.post('/documents', uploadLimiter, async (req, res) => {
+
+// Upload file to SeaweedFS, handle keywords, and create a document
+
+// Upload file to SeaweedFS, handle keywords, and create a document
+app.post('/documents', uploadLimiter, authorize, async (req, res) => {
   try {
-    // Step 1: Perform the file upload using multer (stored in memory)
+    console.log('Request Body:', req.body);
+
+    // Check if the user has the correct role
+    const allowedRoles = ['admin', 'moderator', 'educator'];
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied. Only admins, moderators, and educators can upload documents.' });
+    }
+
+    // Perform the file upload using multer (stored in memory)
     await uploadAsync(req, res);
+    
     if (!req.file) {
       return res.status(400).send({ message: 'No file selected!' });
     }
 
-    // Step 2: Create FormData and append the file for SeaweedFS upload
-    const formData = new FormData();
-    formData.append('file', req.file.buffer, req.file.originalname); // Use file from memory
+    // Add watermark or license to the file (e.g., PDF or DOCX)
+    if (req.file.mimetype === 'application/pdf') {
+      req.file.buffer = await addWatermarkToPDF(req.file.buffer);
+    } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      req.file.buffer = await addWatermarkToDocx(req.file.buffer);
+    }
 
-    // Step 3: Send the file to SeaweedFS
-    const seaweedResponse = await axios.post('http://localhost:9333/submit', formData, {
-      headers: formData.getHeaders() // Set the headers for multipart/form-data
+    // Create FormData and append the file for SeaweedFS upload
+    const formData = new FormData();
+    const bufferStream = new stream.PassThrough();
+    bufferStream.end(req.file.buffer);
+
+    formData.append('file', bufferStream, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype,
     });
 
-    //Log the full SeaweedFS response to check its structure
-    console.log(seaweedResponse.data); // 
+    // Send the file to SeaweedFS
+    const seaweedResponse = await axios.post('http://localhost:9333/submit', formData, {
+      headers: formData.getHeaders()
+    });
 
-    // Extract the fileUrl and ensure it's properly formatted
     let storagePath = seaweedResponse.data.fileUrl;
-
-    // Ensure the storage path has the correct protocol (SeaweedFS response lacks "http://")
     if (!storagePath.startsWith('http')) {
       storagePath = `http://${storagePath}`;
     }
 
-    // Check if storagePath is correctly set
-    if (!storagePath) {
-      return res.status(500).json({ message: "Failed to get storage path from SeaweedFS" });
-    }
+    // Get the document details from the request body
+    const { file_name, subject, grade, keywords } = req.body;
 
-    // Step 4: Get the document details and keywords from the request body
-    const { file_name, subject, grade, uploaded_by, keywords } = req.body;
+    // Use the authenticated user's ID for `uploaded_by`
+    const uploaded_by = req.user.id;
 
-    // Step 5: Insert the new file with an initial rating of 0 and the SeaweedFS storage path
+    // Insert the new file with an initial rating of 0 and the SeaweedFS storage path
     const fileResult = await pool.query(
-      `INSERT INTO public."FILE" (file_name, subject, grade, rating, storage_path, uploaded_by) 
+      `INSERT INTO public."FILE" (file_name, subject, grade, rating, storage_path, uploaded_by)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [file_name, subject, grade, 0, storagePath, uploaded_by]
     );
 
     const fileId = fileResult.rows[0].file_id;
 
-    // Step 6: Upsert (insert or find existing) keywords
-    const keywordList = keywords.split(',').map(k => k.trim()); // Convert comma-separated string to array
-    const keywordIds = await upsertKeywords(pool, keywordList); // Get keyword_ids
+    // Upsert (insert or find existing) keywords
+    const keywordList = keywords.split(',').map(k => k.trim());
+    const keywordIds = await upsertKeywords(pool, keywordList);
 
-    // Step 7: Insert into the file_keyword table to link file and keywords
+    // Insert into the file_keyword table to link file and keywords
     for (const keywordId of keywordIds) {
       await pool.query('INSERT INTO public."FILE_KEYWORD" (file_id, keyword_id) VALUES ($1, $2)', [fileId, keywordId]);
     }
 
-    // Step 8: Return a success message
     res.status(201).json({ msg: "File uploaded, document created, and keywords linked successfully", file: fileResult.rows[0] });
 
   } catch (err) {
-    console.log('Caught error:', err);  // Log the caught error for debugging
-    res.status(500).send({ message: err.message || err });  // Send the error message
+    console.error('Caught error:', err);
+    res.status(500).send({ message: err.message || err });
   }
 });
-
-
 
 
 
@@ -524,6 +659,12 @@ app.get('/search-documents', async (req, res) => {
 app.post("/moderate-document", authorize, async (req, res) => {
   const { file_id, action, comments } = req.body;
   const moderator_id = req.user.id;
+
+  allowedRoles = ['admin', 'moderator'];
+
+  if (!allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({ message: 'Failed. Only admins and moderators can moderate documents.' });
+  }
 
 
   if (!['approved', 'rejected'].includes(action)) {
