@@ -35,6 +35,10 @@ const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const util = require('util');
 
+//-----------24 Sep Kenewang------
+const session = require("express-session");
+//---------------------
+
 // Database connection
 const pool = new Pool({
   host: "localhost",
@@ -43,6 +47,18 @@ const pool = new Pool({
   port: 5432,
   database: "share2teach_db" //change this depending of the name of your database
 });
+
+// Initialize session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET,  // Use a secure secret key from environment variables
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',  // Set to true in production to enforce HTTPS
+    maxAge: 24 * 60 * 60 * 1000  // 1 day in milliseconds
+  }
+}));
+
 
 
 // Middleware to validate input
@@ -97,15 +113,17 @@ function jwtGenerator(user) {
     user: {
       id: user.user_id,  // Make sure this is the correct field name
       email: user.email, // Add email or any other information if necessary
-      role: user.role  // Add the user's role to the token payload
+      role: user.role,  // Add the user's role to the token payload
+
+      token_version: user.token_version // Add token version for validation
+
     }
   };
   // Sign and return the token with an expiration time of 1 hour
   return jwt.sign(payload, process.env.jwtSecret, { expiresIn: "1h" });
 }
 
-
-// Authorization middleware to protect routes
+// Updated Authorization Middleware [24 Sep]
 function authorize(req, res, next) {
   const token = req.header("jwt_token"); // Get the token from the request headers
   if (!token) {
@@ -116,11 +134,60 @@ function authorize(req, res, next) {
     const verify = jwt.verify(token, process.env.jwtSecret); // Verify the token
     console.log("Decoded Token:", verify); // Add this to check the decoded token
     req.user = verify.user; // Attach the user info from the token to the request object
-    next(); // Proceed to the next middleware or route handler
+
+    // Check if token_version matches the current version in the database
+    pool.query("SELECT token_version FROM public.\"USER\" WHERE user_id = $1", [req.user.id], (err, result) => {
+      if (err) {
+        return res.status(500).json({ msg: "Server error" });
+      }
+
+      if (result.rows.length === 0) {
+        return res.status(401).json({ msg: "User not found" });
+      }
+
+      const currentTokenVersion = result.rows[0].token_version;
+      if (currentTokenVersion !== req.user.token_version) {
+        return res.status(401).json({ msg: "Token is invalid due to version mismatch" });
+      }
+
+      // Proceed to the next middleware or route handler
+      next();
+    });
   } catch (err) {
-    res.status(401).json({ msg: "Token is not valid" }); // Respond with an error if the token is invalid
+    console.error(err.message);
+    res.status(401).json({ msg: "Token is not valid" });
   }
 }
+
+
+
+// Function to log user actions [Kenewang 24 Sep]
+async function logUserAction(user_id, activity_type, description) {
+  try {
+    await pool.query(
+      `INSERT INTO public."ACTIVITY_LOG" (user_id, activity_type, description) 
+       VALUES ($1, $2, $3)`,
+      [user_id, activity_type, description]
+    );
+  } catch (err) {
+    console.error("Error logging user action:", err.message);
+  }
+}
+
+// Function to log user navigation (page visit) [24 Sep Kenewang]
+async function logPageVisit(user_id, page_visited, time_spent = null) {
+  try {
+    await pool.query(
+      `INSERT INTO public."ANALYTICS" (user_id, page_visited, time_spent) 
+       VALUES ($1, $2, $3)`,
+      [user_id, page_visited, time_spent]
+    );
+  } catch (err) {
+    console.error("Error logging page visit:", err.message);
+  }
+}
+
+
 
 // Routes
 
@@ -133,7 +200,7 @@ app.get("/", (req, res) => {
 
 // Registration route
 app.post("/register", validInfo, async (req, res) => {
-  const { email, Fname, Lname, username, password} = req.body;
+  const { email, Fname, Lname, username, password } = req.body;
 
   try {
     // Check if the user already exists in the database
@@ -146,7 +213,7 @@ app.post("/register", validInfo, async (req, res) => {
     const salt = await bcrypt.genSalt(10); // Generate a salt for password hashing
     const bcryptPassword = await bcrypt.hash(password, salt); // Hash the user's password
 
-    // Insert the new user into the "USER" table
+    // Insert the new user into the "USER" table [24 Sep Kenewang]
     let newUser = await pool.query(
       `INSERT INTO public."USER" 
       (fname, lname, username, password_hash, email, is_active, role) 
@@ -154,7 +221,10 @@ app.post("/register", validInfo, async (req, res) => {
       [Fname, Lname, username, bcryptPassword, email, true]
     );
 
-    const jwtToken = jwtGenerator(newUser.rows[0].user_id); // Generate a JWT token for the new user
+    // Log the user registration action
+    await logUserAction(newUser.rows[0].user_id, 'register', 'New user registered');
+
+    const jwtToken = jwtGenerator(newUser.rows[0]); // Generate a JWT token for the new user
     return res.json({ jwtToken }); // Respond with the token
   } catch (err) {
     console.error(err.message);
@@ -163,41 +233,62 @@ app.post("/register", validInfo, async (req, res) => {
 });
 
 
+
 // Login route
 app.post("/login", validInfo, async (req, res) => {
-  const { email, password} = req.body;
+  const { email, password } = req.body;
 
   try {
-    // Check if the user exists in the database by email
     const user = await pool.query("SELECT * FROM public.\"USER\" WHERE email = $1", [email]);
 
     if (user.rows.length === 0) {
-      // Return a 401 Unauthorized response if the user does not exist
       return res.status(401).json({ msg: "Invalid Credentials. User not found." });
     }
 
-    // Compare the provided password with the hashed password in the database
     const validPassword = await bcrypt.compare(password, user.rows[0].password_hash);
 
     if (!validPassword) {
-      // Return a 401 Unauthorized response if the password is incorrect
       return res.status(401).json({ msg: "Invalid Credentials. Incorrect password." });
     }
 
-    // Update the last_login field with the current timestamp
     await pool.query("UPDATE public.\"USER\" SET last_login = NOW() WHERE user_id = $1", [user.rows[0].user_id]);
 
-    // Generate a JWT token for the user
     const jwtToken = jwtGenerator(user.rows[0]);
-    return res.json({ jwtToken }); // Send the JWT token back to the user
-    console.log("User Object during Token Generation:", user.rows[0]);
+    res.json({ jwtToken });
+
+    // Log the login action [24 Sep]
+    await logUserAction(user.rows[0].user_id, "login", "User logged in successfully");
 
   } catch (err) {
     console.error(err.message);
-    // Return a 500 Internal Server Error if something goes wrong
     res.status(500).send("Server error");
   }
 });
+
+
+
+app.post("/logout", authorize, async (req, res) => {
+  try {
+    // Increment the token_version to invalidate the current token
+    await pool.query("UPDATE public.\"USER\" SET token_version = token_version + 1 WHERE user_id = $1", [req.user.id]);
+
+    // Log the logout action [24 Sep]
+    await logUserAction(req.user.id, 'logout', 'User logged out and token invalidated');
+
+    // Destroy the session
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ msg: "Error logging out" });
+      }
+      return res.json({ msg: "Successfully logged out. Token is now invalid." });
+    });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
 
 
 
@@ -225,7 +316,12 @@ app.put('/admin/assign-role', authorize, async (req, res) => {
       return res.status(404).json({ msg: "User not found" });
     }
 
+     // Log the role assignment action [Kenewang 24 Sep]
+     await logUserAction(req.user.id, "role_assignment", `Assigned role '${role}' to user with ID ${user_id}`);
+
     res.status(200).json({ msg: `User role updated to ${role}`, user: result.rows[0] });
+
+    
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");
@@ -240,17 +336,17 @@ app.put('/admin/assign-role', authorize, async (req, res) => {
 
 
 
-// Dashboard route (to fetch user information)
-app.post("/dashboard", authorize, async (req, res) => {
+// Route to fetch active (logged-in) user info [Kenewang 24 Sep]
+app.post("/active_user", authorize, async (req, res) => {
   try {
-    // Retrieve the user's first and last name from the database using the ID from the token
-    const user = await pool.query("SELECT user_Fname, user_Lname FROM users WHERE user_id = $1", [req.user.id]);
-    res.json(user.rows[0]); // Respond with the user's name
+    const user = await pool.query("SELECT Fname, Lname FROM public.\"USER\" WHERE user_id = $1", [req.user.id]);
+    res.json(user.rows[0]);
   } catch (err) {
     console.error(err.message);
-    res.status(500).send("Server error"); // Respond with a server error message if something goes wrong
+    res.status(500).send("Server error");
   }
 });
+
 
 
 // ------------Develop basic CRUD operations for documents.[Kenewang]-------------
@@ -260,46 +356,71 @@ app.post("/dashboard", authorize, async (req, res) => {
 
 
 // Get all documents
+
+// Document list route for both logged-in and anonymous users
 app.get('/documents', async (req, res) => {
   try {
-      const result = await pool.query(`SELECT * FROM public."FILE"`);
-      res.status(200).json(result.rows); // Returns all documents
+    const result = await pool.query(`SELECT * FROM public."FILE"`);
+    res.status(200).json(result.rows);
+
+    // Determine if the user is logged in or not
+    let user_id = null;  // Default to null for anonymous users
+
+    // If JWT is provided, extract the user info (this requires middleware to decode JWT)
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.split(' ')[1]; // Assuming 'Bearer <token>'
+        const decoded = jwt.verify(token, process.env.jwtSecret);
+        user_id = decoded.user.id; // Use logged-in user's ID
+      } catch (err) {
+        console.error("JWT error: ", err.message);
+      }
+    }
+
+    // Log the page visit for "Documents List"
+    await logPageVisit(user_id, "Documents List", null); // Time spent is null for now; will be calculated from the front-end
+
   } catch (err) {
-      res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
 
-// Update a document  [modified on 23 Sep by Kenewang]
+
+
+
+// Update a document  [modified on 24 Sep by Kenewang]
 app.put('/documents/:id', authorize, async (req, res) => {
   const { id } = req.params;
-  const { file_name, subject, grade} = req.body;
+  const { file_name, subject, grade } = req.body;
 
   try {
-
     // Check if the user has the correct role
-    allowedRoles = ['admin', 'moderator', 'educator'];
+    const allowedRoles = ['admin', 'moderator', 'educator'];
 
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ message: 'Access denied.' });
     }
 
+    // Update the document in the database
+    const result = await pool.query(
+      `UPDATE public."FILE" 
+       SET file_name = $1, subject = $2, grade = $3
+       WHERE file_id = $4 RETURNING *`,
+      [file_name, subject, grade, id]
+    );
 
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
 
-      const result = await pool.query(
-          `UPDATE public."FILE" 
-           SET file_name = $1, subject = $2, grade = $3
-           WHERE file_id = $4 RETURNING *`,
-          [file_name, subject, grade, id]
-      );
+    // Log the document update action
+    await logUserAction(req.user.id, 'update_document', `Updated document with ID: ${id}`);
 
-      if (result.rows.length === 0) {
-          return res.status(404).json({ error: 'Document not found' });
-      }
-
-      res.status(200).json(result.rows[0]); // Returns the updated document
+    // Return the updated document
+    res.status(200).json(result.rows[0]); 
   } catch (err) {
-      res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -326,6 +447,11 @@ app.delete('/documents/:id', authorize, async (req, res) => {
       if (result.rows.length === 0) {
           return res.status(404).json({ error: 'Document not found' });
       }
+
+
+      // Log the document deletion action [Kenewang 24 Sep]
+      await logUserAction(req.user.id, "document_deletion", `Deleted document with ID ${id}`);
+
 
       res.status(200).json({ message: 'Document deleted successfully' });
   } catch (err) {
@@ -568,7 +694,13 @@ app.post('/documents', uploadLimiter, authorize, async (req, res) => {
       await pool.query('INSERT INTO public."FILE_KEYWORD" (file_id, keyword_id) VALUES ($1, $2)', [fileId, keywordId]);
     }
 
+
+    // Log the file upload action [Kenewang 24 Sep]
+    await logUserAction(req.user.id, "file_upload", `Uploaded file: ${req.body.file_name}`);
+
     res.status(201).json({ msg: "File uploaded, document created, and keywords linked successfully", file: fileResult.rows[0] });
+
+
 
   } catch (err) {
     console.error('Caught error:', err);
@@ -581,8 +713,12 @@ app.post('/documents', uploadLimiter, authorize, async (req, res) => {
 //--------------------------------------------------------------------------
 
 
-//------------------21 Sep [Searching]--------------------------------------------
+//------------------21 Sep [Searching Modified by Kenewang]--------------------------------------------
 // Search documents by file_name, subject, grade, rating, uploaded_by, status, and keywords
+// Function to log user navigation (page visit)
+
+
+// Document search route for both logged-in and anonymous users [24 Sep Kenewang]
 app.get('/search-documents', async (req, res) => {
   const { file_name, subject, grade, rating, uploaded_by, status, keywords } = req.query;
 
@@ -637,11 +773,31 @@ app.get('/search-documents', async (req, res) => {
 
     // Execute the query
     const result = await pool.query(query, values);
-    res.status(200).json(result.rows); // Return the filtered documents
+
+    // Check if the user is logged in or not
+    let user_id = null;  // Default to null for anonymous users
+
+    // If JWT is provided, extract the user info (this requires middleware to decode JWT)
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.split(' ')[1]; // Assuming 'Bearer <token>'
+        const decoded = jwt.verify(token, process.env.jwtSecret);
+        user_id = decoded.user.id; // Use logged-in user's ID
+      } catch (err) {
+        console.error("JWT error: ", err.message);
+      }
+    }
+
+    // Log the search action (with user_id being either null for anonymous or the actual user ID)
+    await logPageVisit(user_id, 'Document Search', null);
+
+    // Return the filtered documents
+    res.status(200).json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 
@@ -693,6 +849,10 @@ app.post("/moderate-document", authorize, async (req, res) => {
       return res.status(404).json({ msg: "File not found or could not update status" });
     }
 
+
+    // Log the moderation action [Kenewang 24 Sep]
+    await logUserAction(moderator_id, "document_moderation", `Moderated document with ID ${file_id}. Action: ${action}, Comments: ${comments || 'No comments'}`);
+
     res.status(200).json({ msg: "Document moderated successfully", updatedFile: updateResult.rows[0] });
   } catch (err) {
     console.error(err.message);
@@ -702,42 +862,110 @@ app.post("/moderate-document", authorize, async (req, res) => {
 
 
 
-// Rating submission route  [Kenewang]
-app.post('/rate-file', authorize, async (req, res) => {
+// Rating submission route  [Kenewang (original)]
+// Route to rate a file [Otshepeng 24 Sep]
+
+app.post("/rate-file", async (req, res) => {
   const { file_id, rating } = req.body;
-  const user_id = req.user.id;
+
+  // Check if the request is authenticated with JWT
+  const token = req.header("jwt_token");
+  let user_id = null;
+
+  if (token) {
+    try {
+      const verify = jwt.verify(token, process.env.jwtSecret);
+      user_id = verify.user.id;
+    } catch (err) {
+      return res.status(401).json({ msg: "Token is not valid" });
+    }
+  }
+
+  // Validate input
+  if (!file_id || !rating) {
+    return res.status(400).json({ msg: "Please provide a file_id and rating" });
+  }
+
+  if (rating < 1 || rating > 5) {
+    return res.status(400).json({ msg: "Rating must be between 1 and 5" });
+  }
 
   try {
-    // Step 1: Check the status of the file
-    const file = await pool.query(
-      `SELECT status FROM public."FILE" WHERE file_id = $1`,
-      [file_id]
-    );
-
-    if (file.rows.length === 0) {
+    // Check if the file exists
+    const fileExists = await pool.query("SELECT * FROM public.\"FILE\" WHERE file_id = $1", [file_id]);
+    if (fileExists.rows.length === 0) {
       return res.status(404).json({ msg: "File not found" });
     }
 
-    const fileStatus = file.rows[0].status;
+    if (user_id) {
+      // Authenticated user: Store rating by user_id
+      const existingRating = await pool.query(
+        "SELECT * FROM public.\"RATING\" WHERE file_id = $1 AND user_id = $2",
+        [file_id, user_id]
+      );
 
-    // Step 2: Only allow rating if the file is approved
-    if (fileStatus !== 'approved') {
-      return res.status(403).json({ msg: "File cannot be rated until it is approved" });
+      if (existingRating.rows.length > 0) {
+        await pool.query(
+          'UPDATE public."RATING" SET rating = $1 WHERE file_id = $2 AND user_id = $3',
+          [rating, file_id, user_id]
+        );
+      } else {
+        await pool.query(
+          'INSERT INTO public."RATING" (file_id, user_id, rating) VALUES ($1, $2, $3)',
+          [file_id, user_id, rating]
+        );
+      }
+
+      // Log page visit for the authenticated user
+      await logPageVisit(user_id, "Rate File",null);
+      
+    } else {
+      // Open Access User: Store rating by session ID
+      const sessionId = req.sessionID; 
+
+      const existingRating = await pool.query(
+        "SELECT * FROM public.\"RATING\" WHERE file_id = $1 AND session_id = $2",
+        [file_id, sessionId]
+      );
+
+      if (existingRating.rows.length > 0) {
+        await pool.query(
+          'UPDATE public."RATING" SET rating = $1 WHERE file_id = $2 AND session_id = $3',
+          [rating, file_id, sessionId]
+        );
+      } else {
+        await pool.query(
+          'INSERT INTO public."RATING" (file_id, session_id, rating) VALUES ($1, $2, $3)',
+          [file_id, sessionId, rating]
+        );
+      }
+
+      // Log page visit for anonymous user (open-access user)
+      await logPageVisit(null, "Rate File", null);
     }
 
-    // Step 3: Insert the rating if the file is approved
-    await pool.query(
-      `INSERT INTO public."RATING" (file_id, user_id, rating) 
-       VALUES ($1, $2, $3) RETURNING *`,
-      [file_id, user_id, rating]
+    // Calculate the new average rating for the file
+    const newAverageRating = await pool.query(
+      'SELECT AVG(rating) AS avg_rating FROM public."RATING" WHERE file_id = $1',
+      [file_id]
     );
 
-    res.status(201).json({ msg: "Rating submitted successfully" });
+    const averageRating = parseFloat(newAverageRating.rows[0].avg_rating).toFixed(1);
+
+    // Update the file's average rating
+    await pool.query(
+      'UPDATE public."FILE" SET rating = $1 WHERE file_id = $2',
+      [averageRating, file_id]
+    );
+
+    res.status(200).json({ msg: "Rating submitted successfully", averageRating });
   } catch (err) {
     console.error(err.message);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).send("Server error");
   }
 });
+
+
 
 
 //---document reporting [aadil] modified by [kenewang] 22 Sep ---------------------------------
@@ -750,7 +978,7 @@ app.post('/report-document', authorize, async (req, res) => {
   if (req.user) {
     reporter_id = req.user.id;  // Get the reporter's user ID if logged in
   }
-  console.log("Reporter ID:", req.user ? req.user.id : "Anonymous");
+  
 
   try {
     // Insert a new report into the database
@@ -759,6 +987,9 @@ app.post('/report-document', authorize, async (req, res) => {
        VALUES ($1, $2, $3, 'pending')`,
       [file_id, reporter_id, reason]
     );
+
+    // Log the document report action [27 Sep]
+    await logUserAction(reporter_id, 'report_document', `Reported document with ID: ${file_id}`);
 
     res.status(201).json({ msg: "Report submitted successfully" });
   } catch (err) {
@@ -772,10 +1003,13 @@ app.post('/report-document', authorize, async (req, res) => {
 // Get all pending reports (for moderators)
 app.get('/reports', authorize, async (req, res) => {
   try {
-    // Check if the logged-in user is a moderator
-    if (req.user.role !== 'moderator') {
-      return res.status(403).json({ msg: "Access denied. Only moderators can view reports." });
-    }
+    // Check if the user has the correct role
+    const allowedRoles = ['admin', 'moderator'];
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied. Only admins and Moderators can view reports.' });
+ }
+
+
 
     // Fetch all pending reports
     const result = await pool.query(`
@@ -786,12 +1020,16 @@ app.get('/reports', authorize, async (req, res) => {
       ORDER BY r.created_at DESC
     `);
 
+    // Log the action of viewing reports
+    await logUserAction(req.user.id, 'view_reports', 'Moderator viewed pending reports');
+
     res.status(200).json(result.rows); // Return all pending reports
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");
   }
 });
+
 
 
 
@@ -805,10 +1043,12 @@ app.post('/moderate-report', authorize, async (req, res) => {
   }
 
   try {
-    // Check if the logged-in user is a moderator
-    if (req.user.role !== 'moderator') {
-      return res.status(403).json({ msg: "Access denied. Only moderators can moderate reports." });
-    }
+    // Check if the user has the correct role
+    const allowedRoles = ['admin', 'moderator'];
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied. Only admins and Moderators can view reports.' });
+ }
 
     // Update the status of the report
     const result = await pool.query(`
@@ -823,6 +1063,9 @@ app.post('/moderate-report', authorize, async (req, res) => {
       return res.status(404).json({ msg: "Report not found." });
     }
 
+    // Log the moderation action
+    await logUserAction(req.user.id, 'moderate_report', `Moderator ${action} report with ID: ${report_id}`);
+
     res.status(200).json({ msg: `Report has been ${action}.`, report: result.rows[0] });
   } catch (err) {
     console.error(err.message);
@@ -833,11 +1076,7 @@ app.post('/moderate-report', authorize, async (req, res) => {
 
 
 
-
 //----------------------------------------------------------------------------
-
-
-
 
 
 
