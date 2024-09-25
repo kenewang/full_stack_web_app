@@ -1079,6 +1079,148 @@ app.post('/moderate-report', authorize, async (req, res) => {
 //----------------------------------------------------------------------------
 
 
+//------25 Sep 2024 Analytics [Kenewang ]
+// Get all activity logs (only for admins and moderators)
+app.get('/activity-logs', authorize, async (req, res) => {
+  try {
+    // Check if the logged-in user is an admin or moderator
+    const allowedRoles = ['admin', 'moderator'];
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ msg: "Access denied. Only admins and moderators can view activity logs." });
+    }
+
+    // Fetch all activity logs
+    const result = await pool.query(`SELECT * FROM public."ACTIVITY_LOG" ORDER BY timestamp DESC`);
+
+    // Return all activity logs
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+
+// Get all user analytics (only for admins and moderators)
+app.get('/analytics', authorize, async (req, res) => {
+  try {
+    // Check if the logged-in user is an admin or moderator
+    const allowedRoles = ['admin', 'moderator'];
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ msg: "Access denied. Only admins and moderators can view user analytics." });
+    }
+
+    // Fetch all user analytics
+    const result = await pool.query(`SELECT * FROM public."ANALYTICS" ORDER BY visit_date DESC`);
+
+    // Return all user analytics
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+//---------25 Sep FAQ [Otshepeng modified by Kenewang]
+
+app.post("/faq", authorize, async (req, res) => {
+  const { question } = req.body;
+
+  // Check if the user is an admin or moderator
+  const allowedRoles = ['admin', 'moderator'];
+  if (!allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({ msg: "Access denied. Only admins or moderators can create FAQs." });
+  }
+
+  if (!question) {
+    return res.status(400).json({ msg: "Please provide a question" });
+  }
+
+  try {
+    // Insert the FAQ with the user_id of the admin or moderator who created it
+    const result = await pool.query(
+      'INSERT INTO public."FAQ" (question, created_by) VALUES ($1, $2) RETURNING *',
+      [question, req.user.id]
+    );
+
+    // Log the user action for creating an FAQ
+    await logUserAction(req.user.id, 'create_faq', `Created FAQ with ID: ${result.rows[0].faq_id}`);
+
+    // Return success response
+    res.status(200).json({ msg: "FAQ created successfully", faq: result.rows[0] });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+
+app.post("/faq_answer", authorize, async (req, res) => {
+  const { faq_id, answer } = req.body;
+
+  // Check if the user is an Admin or Moderator
+  const userRole = await pool.query('SELECT role FROM public.\"USER\" WHERE user_id = $1', [req.user.id]);
+  if (!['admin', 'moderator'].includes(userRole.rows[0].role)) {
+    return res.status(403).json({ msg: "Permission denied" });
+  }
+
+  // Ensure FAQ ID and answer are provided
+  if (!faq_id || !answer) {
+    return res.status(400).json({ msg: "Please provide both FAQ ID and answer" });
+  }
+
+  try {
+    // Update the FAQ with the provided answer
+    await pool.query(
+      "UPDATE public.\"FAQ\" SET answer = $1 WHERE faq_id = $2",
+      [answer, faq_id]
+    );
+
+    // Log the user action for adding an answer
+    await logUserAction(req.user.id, 'answer_faq', `Answered FAQ with ID: ${faq_id}`);
+
+    // Send success response
+    res.status(200).json({ msg: "Answer added successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+
+
+
+app.get("/faqs", async (req, res) => {
+  try {
+    const faqs = await pool.query("SELECT * FROM public.\"FAQ\" ORDER BY created_at DESC");
+    
+    // Send the FAQs response
+    res.status(200).json(faqs.rows);
+
+    // Log the page visit for FAQs
+    let user_id = null;
+
+    // Check if the request contains a valid token for a logged-in user
+    const token = req.header("jwt_token");
+    if (token) {
+      try {
+        const verify = jwt.verify(token, process.env.jwtSecret);
+        user_id = verify.user.id;
+      } catch (err) {
+        console.error("Invalid token, logging page visit for open access user");
+      }
+    }
+
+    // Log the visit, use 'FAQs Page' as page name
+    await logPageVisit(user_id, "FAQs Page", null);
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
 
 // Start server
 app.listen(3000, () => {
