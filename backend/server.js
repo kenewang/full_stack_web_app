@@ -4,6 +4,9 @@ const FormData = require('form-data'); // Import FormData to handle multipart da
 const fs = require('fs');
 //------------------------------------------
 
+// ---25 Sep ----------------
+const libre = require('libreoffice-convert');
+//-------------------
 
 //-----23 Sep-----------------------------
 const stream = require('stream');
@@ -360,26 +363,37 @@ app.post("/active_user", authorize, async (req, res) => {
 // Document list route for both logged-in and anonymous users
 app.get('/documents', async (req, res) => {
   try {
-    const result = await pool.query(`SELECT * FROM public."FILE"`);
-    res.status(200).json(result.rows);
+    let query = `SELECT * FROM public."FILE" WHERE status = 'approved'`; // Default for non-logged-in users
+    const values = [];
 
-    // Determine if the user is logged in or not
-    let user_id = null;  // Default to null for anonymous users
+    // Check if the user is logged in
+    let userRole = null;
+    let user_id = null; // Default is null for non-logged-in users
 
-    // If JWT is provided, extract the user info (this requires middleware to decode JWT)
+    // If JWT is provided, extract the user info
     if (req.headers.authorization) {
       try {
         const token = req.headers.authorization.split(' ')[1]; // Assuming 'Bearer <token>'
-        const decoded = jwt.verify(token, process.env.jwtSecret);
-        user_id = decoded.user.id; // Use logged-in user's ID
+        const decoded = jwt.verify(token, process.env.jwtSecret); // Verify and decode the token
+        userRole = decoded.user.role; // Get the user's role
+        user_id = decoded.user.id; // Get the user's ID
       } catch (err) {
         console.error("JWT error: ", err.message);
       }
     }
 
-    // Log the page visit for "Documents List"
-    await logPageVisit(user_id, "Documents List", null); // Time spent is null for now; will be calculated from the front-end
+    // If the user is logged in and is an admin or moderator, fetch all documents
+    if (userRole === 'admin' || userRole === 'moderator') {
+      query = `SELECT * FROM public."FILE"`; // Fetch all documents for admin and moderator
+    }
 
+    // Fetch the documents from the database
+    const result = await pool.query(query, values);
+
+    // Log the page visit for document viewing
+    await logPageVisit(user_id, "Documents List", null); // Log the page visit with user_id
+
+    res.status(200).json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1222,7 +1236,106 @@ app.get("/faqs", async (req, res) => {
 });
 
 
-// Start server
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
+
+//26 September Kenewang  ---------------------------------------
+
+
+// Route to convert a file to PDF (if it's not already PDF)
+app.get('/convert-to-pdf/:file_id', async (req, res) => {
+  try {
+    const { file_id } = req.params;
+
+    // Fetch the file details from the database
+    const fileResult = await pool.query('SELECT * FROM public."FILE" WHERE file_id = $1', [file_id]);
+    
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ msg: "File not found" });
+    }
+
+    const fileData = fileResult.rows[0];
+    const filePath = fileData.storage_path; // Assuming storage_path holds the actual file URL or path
+
+    // Check if the file is already a PDF
+    const fileExtension = path.extname(filePath).toLowerCase();
+    if (fileExtension === '.pdf') {
+      return res.status(400).json({ msg: "File is already in PDF format" });
+    }
+
+    // Fetch the file from SeaweedFS
+    const response = await axios.get(filePath, { responseType: 'arraybuffer' });
+    const inputFile = Buffer.from(response.data); // The file content
+
+    // Convert to PDF
+    libre.convert(inputFile, '.pdf', undefined, async (err, done) => {
+      if (err) {
+        console.log(`Error converting file: ${err.message}`);
+        return res.status(500).json({ msg: "Error converting file" });
+      }
+
+      // Step 1: Send the converted PDF to SeaweedFS
+      const formData = new FormData();
+      const bufferStream = new stream.PassThrough();
+      bufferStream.end(done); // Use the converted PDF buffer
+
+      formData.append('file', bufferStream, {
+        filename: `${path.basename(fileData.file_name, fileExtension)}.pdf`,
+        contentType: 'application/pdf'
+      });
+
+      // Upload the PDF to SeaweedFS
+      const seaweedResponse = await axios.post('http://localhost:9333/submit', formData, {
+        headers: formData.getHeaders()
+      });
+
+      // Get the SeaweedFS file URL
+      let pdfStoragePath = seaweedResponse.data.fileUrl;
+      if (!pdfStoragePath.startsWith('http')) {
+        pdfStoragePath = `http://${pdfStoragePath}`;
+      }
+
+      // Step 2: Update the database with the new PDF file path
+      await pool.query(
+        'UPDATE public."FILE" SET storage_path = $1 WHERE file_id = $2',
+        [pdfStoragePath, file_id]
+      );
+
+      // Step 3: Return the PDF link or allow download
+      res.status(200).json({
+        msg: "File converted and saved successfully",
+        pdfUrl: pdfStoragePath  // Return the new PDF file URL for download
+      });
+    });
+
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
 });
+
+
+
+
+
+
+//----------------------------------------------------------------
+
+
+
+
+// Start server only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(3000, () => {
+    console.log("Server is running on port 3000");
+  });
+}
+
+
+
+module.exports = {
+  jwtGenerator, authorize
+  
+};
+
+module.exports = app;
+
+
