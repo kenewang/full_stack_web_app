@@ -4,8 +4,11 @@ const FormData = require('form-data'); // Import FormData to handle multipart da
 const fs = require('fs');
 //------------------------------------------
 
-// ---25 Sep ----------------
+// ---26 Sep ----------------
 const libre = require('libreoffice-convert');
+const nodemailer = require('nodemailer');  // We use nodemailer to send emails
+const crypto = require('crypto');
+
 //-------------------
 
 //-----23 Sep-----------------------------
@@ -268,7 +271,7 @@ app.post("/login", validInfo, async (req, res) => {
   }
 });
 
-
+//Logout
 
 app.post("/logout", authorize, async (req, res) => {
   try {
@@ -291,6 +294,110 @@ app.post("/logout", authorize, async (req, res) => {
     res.status(500).send("Server error");
   }
 });
+
+
+// Forgot Password Route
+app.post("/forgot-password", async (req, res) => {
+  const { email } = req.body;
+  
+  try {
+    // Check if user exists
+    const user = await pool.query("SELECT * FROM public.\"USER\" WHERE email = $1", [email]);
+    if (user.rows.length === 0) {
+      return res.status(400).json({ msg: "User with this email does not exist" });
+    }
+    
+    // Generate a reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const tokenExpiration = Date.now() + 3600000; // Token expires in 1 hour (UNIX timestamp)
+    
+    // Store reset token and expiration in database
+    await pool.query(
+      "UPDATE public.\"USER\" SET reset_password_token = $1, reset_password_expires = $2 WHERE email = $3",
+      [resetToken, tokenExpiration, email]
+    );
+    
+    // Send reset email
+    const resetLink = `http://localhost:3000/reset-password/${resetToken}`;
+    const mailOptions = {
+      from: process.env.EMAIL,
+      to: email,
+      subject: 'Password Reset Request',
+      text: `You have requested to reset your password. Please click the link to reset: ${resetLink}`
+    };
+    
+    transporter.sendMail(mailOptions, async (error, info) => {
+      if (error) {
+        console.error("Error sending mail:", error);
+        return res.status(500).json({ msg: "Error sending reset email" });
+      }
+
+      // Log the password reset request action
+      await logUserAction(user.rows[0].user_id, "password_reset_request", `Password reset link sent to ${email}`);
+      
+      res.json({ msg: `Password reset link sent to ${email}` });
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+
+
+//password reset route
+
+app.post("/reset-password/:token", async (req, res) => {
+  const { token } = req.params;
+  const { password, confirmPassword } = req.body;
+
+  // Check if passwords match
+  if (password !== confirmPassword) {
+    return res.status(400).json({ msg: "Passwords do not match" });
+  }
+
+  try {
+    // Find user by reset token and check if the token is still valid
+    const user = await pool.query(
+      `SELECT * FROM public."USER" WHERE reset_password_token = $1 AND reset_password_expires > EXTRACT(EPOCH FROM NOW()) * 1000`,
+      [token]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(400).json({ msg: "Invalid or expired reset token" });
+    }
+
+    // Hash the new password
+    const salt = await bcrypt.genSalt(10);
+    const bcryptPassword = await bcrypt.hash(password, salt);
+
+    // Update the password and clear the reset token
+    await pool.query(
+      "UPDATE public.\"USER\" SET password_hash = $1, reset_password_token = NULL, reset_password_expires = NULL WHERE user_id = $2",
+      [bcryptPassword, user.rows[0].user_id]
+    );
+
+    // Log the password reset action
+    await logUserAction(user.rows[0].user_id, "password_reset", "User successfully reset password");
+
+    res.json({ msg: "Password successfully reset" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+
+
+
+const transporter = nodemailer.createTransport({
+  service: 'Gmail',
+  auth: {
+    user: process.env.EMAIL, // Your email
+    pass: process.env.EMAIL_PASSWORD // Your email password
+  }
+});
+
 
 
 
