@@ -183,7 +183,7 @@ async function logUserAction(user_id, activity_type, description) {
   }
 }
 
-// Function to log user navigation (page visit) [24 Sep Kenewang]
+// Function to log user navigation
 async function logPageVisit(user_id, page_visited, time_spent = null) {
   try {
     await pool.query(
