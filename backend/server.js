@@ -1,49 +1,60 @@
-//----20 Sep -------------------------------
-const axios = require('axios'); // Import axios
-const FormData = require('form-data'); // Import FormData to handle multipart data
+
+const axios = require('axios'); 
+const FormData = require('form-data'); 
 const fs = require('fs');
-//------------------------------------------
-
-// ---26 Sep ----------------
 const libre = require('libreoffice-convert');
-const nodemailer = require('nodemailer');  // We use nodemailer to send emails
+const nodemailer = require('nodemailer');  
 const crypto = require('crypto');
-
-//-------------------
-
-//-----23 Sep-----------------------------
 const stream = require('stream');
-
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
-
 const { Document, Packer, Paragraph, Footer, AlignmentType, TextRun } = require('docx');
-
 const PizZip = require('pizzip');
 const Docxtemplater = require('docxtemplater');
-
-//-------------------------------------------
-
-
-
 const express = require("express");
-const app = express(); //Initialize Express app
+const app = express(); 
 app.use(express.json());
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const { Pool } = require("pg");
-
 const multer = require('multer');
 const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const util = require('util');
-
-//-----------24 Sep Kenewang------
 const session = require("express-session");
-//---------------------
+
+const swaggerJsDoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
+
+// Swagger options
+const swaggerOptions = {
+  swaggerDefinition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Share2Teach API",
+      version: "1.0.0",
+      description: "API documentation for Share2Teach web app",
+      contact: {
+        name: "Lennies"
+      }
+    },
+    servers: [
+      {
+        url: "http://localhost:3000" 
+      }
+    ]
+  },
+  apis: [path.join(__dirname, 'server.js')], // Point to the server.js file for Swagger docs
+};
+
+const swaggerDocs = swaggerJsDoc(swaggerOptions);
+
+// Swagger route
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+
 
 // Database connection
 const pool = new Pool({
@@ -77,8 +88,6 @@ function validInfo(req, res, next) {
     return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(userEmail);
   }
 
-
-
   // Validation for registration route
   if (req.path === "/register") {
     // Check if all required fields are provided
@@ -90,8 +99,7 @@ function validInfo(req, res, next) {
     if (!validEmail(email)) {
       return res.status(400).json({ msg: "Invalid Email" });
     }
-
-    
+   
   }
 
   // Validation for login route
@@ -109,9 +117,6 @@ function validInfo(req, res, next) {
 
   next(); // Proceed to the next middleware or route handler
 }
-
-
-
 
 // JWT (JSON Web Token) generation function
 function jwtGenerator(user) {
@@ -165,8 +170,6 @@ function authorize(req, res, next) {
   }
 }
 
-
-
 // Function to log user actions [Kenewang 24 Sep]
 async function logUserAction(user_id, activity_type, description) {
   try {
@@ -193,8 +196,6 @@ async function logPageVisit(user_id, page_visited, time_spent = null) {
   }
 }
 
-
-
 // Routes
 
 // Root route to check if the server is running
@@ -203,6 +204,60 @@ app.get("/", (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /register:
+ *   post:
+ *     summary: Register a new user
+ *     description: Create a new user account
+ *     tags:
+ *       - User
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - Fname
+ *               - Lname
+ *               - username
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The user's email
+ *               Fname:
+ *                 type: string
+ *                 description: The user's first name
+ *               Lname:
+ *                 type: string
+ *                 description: The user's last name
+ *               username:
+ *                 type: string
+ *                 description: The user's chosen username
+ *               password:
+ *                 type: string
+ *                 description: The user's password
+ *     responses:
+ *       200:
+ *         description: User successfully registered
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 jwtToken:
+ *                   type: string
+ *                   description: The JWT token for the newly registered user
+ *       400:
+ *         description: Invalid input data or missing fields
+ *       401:
+ *         description: User already exists
+ *       500:
+ *         description: Server error
+ */
 
 // Registration route
 app.post("/register", validInfo, async (req, res) => {
@@ -240,6 +295,49 @@ app.post("/register", validInfo, async (req, res) => {
 
 
 
+/**
+ * @swagger
+ * /login:
+ *   post:
+ *     summary: Login a user
+ *     description: Authenticates a user and generates a JWT token
+ *     tags:
+ *       - User
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The user's email address
+ *               password:
+ *                 type: string
+ *                 description: The user's password
+ *     responses:
+ *       200:
+ *         description: User successfully logged in and JWT token returned
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 jwtToken:
+ *                   type: string
+ *                   description: The JWT token for the authenticated user
+ *       400:
+ *         description: Invalid input data
+ *       401:
+ *         description: Invalid credentials or user not found
+ *       500:
+ *         description: Server error
+ */
+
 // Login route
 app.post("/login", validInfo, async (req, res) => {
   const { email, password } = req.body;
@@ -271,7 +369,38 @@ app.post("/login", validInfo, async (req, res) => {
   }
 });
 
-//Logout
+
+
+/**
+ * @swagger
+ * /logout:
+ *   post:
+ *     summary: Logout a user
+ *     description: Logs out the user by invalidating their JWT token and destroying their session.
+ *     tags:
+ *       - User
+ *     security:
+ *       - bearerAuth: []  # Requires JWT token
+ *     responses:
+ *       200:
+ *         description: User successfully logged out and token invalidated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Success message confirming the logout
+ *       401:
+ *         description: Unauthorized, no valid token provided
+ *       500:
+ *         description: Server error
+ */
+
+
+
+//Logout Route
 
 app.post("/logout", authorize, async (req, res) => {
   try {
@@ -294,7 +423,6 @@ app.post("/logout", authorize, async (req, res) => {
     res.status(500).send("Server error");
   }
 });
-
 
 // Forgot Password Route
 app.post("/forgot-password", async (req, res) => {
@@ -345,6 +473,52 @@ app.post("/forgot-password", async (req, res) => {
 
 
 
+/**
+ * @swagger
+ * /reset-password/{token}:
+ *   post:
+ *     summary: Reset password using a valid reset token
+ *     description: Allows the user to reset their password by providing a valid reset token. The token is checked for validity and expiration.
+ *     tags:
+ *       - Password
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Password reset token
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 description: The new password
+ *               confirmPassword:
+ *                 type: string
+ *                 description: The confirmation for the new password
+ *     responses:
+ *       200:
+ *         description: Password successfully reset
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Success message confirming password reset
+ *       400:
+ *         description: Invalid or expired token, or passwords do not match
+ *       500:
+ *         description: Server error
+ */
+
+
 //password reset route
 
 app.post("/reset-password/:token", async (req, res) => {
@@ -387,9 +561,6 @@ app.post("/reset-password/:token", async (req, res) => {
   }
 });
 
-
-
-
 const transporter = nodemailer.createTransport({
   service: 'Gmail',
   auth: {
@@ -399,10 +570,53 @@ const transporter = nodemailer.createTransport({
 });
 
 
-
-
-
-//-------------------------22 Sep ----------------------------
+/**
+ * @swagger
+ * /admin/assign-role:
+ *   put:
+ *     summary: Assign or update a user's role
+ *     description: Allows an admin to assign or update the role of a specific user.
+ *     tags:
+ *       - Admin
+ *     security:
+ *       - jwt_token: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user_id:
+ *                 type: integer
+ *                 description: ID of the user whose role is being updated
+ *               role:
+ *                 type: string
+ *                 description: The new role to assign to the user
+ *             required:
+ *               - user_id
+ *               - role
+ *     responses:
+ *       200:
+ *         description: User role updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Success message confirming the role update
+ *                 user:
+ *                   type: object
+ *                   description: The updated user object
+ *       403:
+ *         description: Access denied. Only admins can assign roles
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
 
 
 // Route for admin to assign user roles
@@ -440,13 +654,36 @@ app.put('/admin/assign-role', authorize, async (req, res) => {
 
 
 
+/**
+ * @swagger
+ * /active_user:
+ *   post:
+ *     summary: Fetch the active (logged-in) user's details
+ *     description: Returns the first and last name of the currently logged-in user based on the JWT token.
+ *     tags:
+ *       - User
+ *     security:
+ *       - jwt_token: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched active user details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 Fname:
+ *                   type: string
+ *                   description: First name of the logged-in user
+ *                 Lname:
+ *                   type: string
+ *                   description: Last name of the logged-in user
+ *       500:
+ *         description: Server error
+ */
 
-//---------------------------------------------------------------
 
-
-
-
-// Route to fetch active (logged-in) user info [Kenewang 24 Sep]
+// Route to fetch active (logged-in)
 app.post("/active_user", authorize, async (req, res) => {
   try {
     const user = await pool.query("SELECT Fname, Lname FROM public.\"USER\" WHERE user_id = $1", [req.user.id]);
@@ -459,10 +696,57 @@ app.post("/active_user", authorize, async (req, res) => {
 
 
 
-// ------------Develop basic CRUD operations for documents.[Kenewang]-------------
-
-
- 
+/**
+ * @swagger
+ * /documents:
+ *   get:
+ *     summary: Fetch a list of documents
+ *     description: Retrieves a list of approved documents for non-logged-in users. Admins and moderators can view all documents, regardless of status.
+ *     tags:
+ *       - Documents
+ *     security:
+ *       - jwt_token: []   # Optional, non-logged-in users can still access
+ *     responses:
+ *       200:
+ *         description: A list of documents
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   file_id:
+ *                     type: integer
+ *                     description: Unique ID of the file
+ *                   file_name:
+ *                     type: string
+ *                     description: Name of the document
+ *                   subject:
+ *                     type: integer
+ *                     description: Subject ID related to the document
+ *                   grade:
+ *                     type: integer
+ *                     description: Grade level of the document
+ *                   rating:
+ *                     type: number
+ *                     description: Average rating of the document
+ *                   storage_path:
+ *                     type: string
+ *                     description: Path to the file storage location
+ *                   uploaded_by:
+ *                     type: integer
+ *                     description: ID of the user who uploaded the document
+ *                   status:
+ *                     type: string
+ *                     description: Status of the document (e.g., approved, pending)
+ *                   upload_date:
+ *                     type: string
+ *                     format: date-time
+ *                     description: Date and time the document was uploaded
+ *       500:
+ *         description: Server error
+ */
 
 
 // Get all documents
@@ -507,10 +791,72 @@ app.get('/documents', async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /documents/{id}:
+ *   put:
+ *     summary: Update an existing document
+ *     description: Allows users with specific roles (admin, moderator, educator) to update a document's details, such as file name, subject, and grade.
+ *     tags:
+ *       - Documents
+ *     security:
+ *       - jwt_token: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the document to update
+ *       - in: body
+ *         name: document
+ *         description: The document details to update
+ *         schema:
+ *           type: object
+ *           required:
+ *             - file_name
+ *             - subject
+ *             - grade
+ *           properties:
+ *             file_name:
+ *               type: string
+ *               description: The new name of the document
+ *             subject:
+ *               type: integer
+ *               description: The new subject ID of the document
+ *             grade:
+ *               type: integer
+ *               description: The new grade level of the document
+ *     responses:
+ *       200:
+ *         description: Document updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 file_id:
+ *                   type: integer
+ *                 file_name:
+ *                   type: string
+ *                 subject:
+ *                   type: integer
+ *                 grade:
+ *                   type: integer
+ *                 rating:
+ *                   type: number
+ *                 status:
+ *                   type: string
+ *       403:
+ *         description: Access denied. Only authorized roles (admin, moderator, educator) can update documents.
+ *       404:
+ *         description: Document not found
+ *       500:
+ *         description: Server error
+ */
 
 
-
-// Update a document  [modified on 24 Sep by Kenewang]
+// Route to Update a document  
 app.put('/documents/:id', authorize, async (req, res) => {
   const { id } = req.params;
   const { file_name, subject, grade } = req.body;
@@ -546,7 +892,44 @@ app.put('/documents/:id', authorize, async (req, res) => {
 });
 
 
-// Delete a document  modified by kenewang on 23 Sep
+/**
+ * @swagger
+ * /documents/{id}:
+ *   delete:
+ *     summary: Delete a document
+ *     description: Allows users with specific roles (admin, moderator, educator) to delete a document by its ID.
+ *     tags:
+ *       - Documents
+ *     security:
+ *       - jwt_token: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the document to delete
+ *     responses:
+ *       200:
+ *         description: Document deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Document deleted successfully"
+ *       403:
+ *         description: Access denied. Only authorized roles (admin, moderator, educator) can delete documents.
+ *       404:
+ *         description: Document not found
+ *       500:
+ *         description: Server error
+ */
+
+
+// Route to Delete a document  
 app.delete('/documents/:id', authorize, async (req, res) => {
   const { id } = req.params;
 
@@ -581,14 +964,13 @@ app.delete('/documents/:id', authorize, async (req, res) => {
 });
 
 
-//----------------------------------------------
+
+
 // Security middleware
 app.use(helmet());
 app.use(morgan('combined'));
 
 
-
-//----------23 Sep----------------------------------------------
 
 
 
@@ -635,12 +1017,6 @@ async function addWatermarkToPDF(pdfBuffer) {
 
 module.exports = addWatermarkToPDF;
 
-
-
-
-
-
-
 // Function to add watermark to DOCX
 async function addWatermarkToDocx(buffer) {
   try {
@@ -667,7 +1043,6 @@ async function addWatermarkToDocx(buffer) {
 
 module.exports = addWatermarkToDocx;
 
-
 // Function to add watermark to Excel documents
 const ExcelJS = require('exceljs');
 
@@ -686,8 +1061,6 @@ async function addWatermarkToExcel(buffer) {
 }
 
 module.exports = addWatermarkToExcel;
-
-
 
 // Function to add watermark to Powerpoint presentations
 const PptxGenJS = require("pptxgenjs");
@@ -719,12 +1092,6 @@ async function addWatermarkToPpt() {
 
 module.exports = addWatermarkToPpt;
 
-
-
-
-
-
-
 // Function to add watermark to Textfiles
 async function addWatermarkToTxt(buffer) {
   const originalText = buffer.toString('utf-8');  // Convert buffer to string
@@ -743,12 +1110,6 @@ module.exports = addWatermarkToTxt;
 
 
 
-//--------------------------------------------------------------------------------
-
-
-
-
-//-----21 Sep Document Creationg and upload to Seaweedfs ----------------
 // Set up rate limiter for uploads
 
 const uploadLimiter = rateLimit({
@@ -776,11 +1137,6 @@ function checkFileType(file, cb) {
   }
 }
 
-
-
-
-
-
 // Multer setup without local storage, just validation
 const storage = multer.memoryStorage(); // Store in memory buffer, not locally
 const upload = multer({
@@ -794,10 +1150,6 @@ const upload = multer({
 
 // Convert Multer to Promise-based for async/await
 const uploadAsync = util.promisify(upload);
-
-
-
-
 
 // Helper function to upsert keywords (insert if not exists, otherwise retrieve existing ones)
 async function upsertKeywords(pool, keywords) {
@@ -818,12 +1170,65 @@ async function upsertKeywords(pool, keywords) {
 }
 
 
+/**
+ * @swagger
+ * /documents:
+ *   post:
+ *     summary: Upload a new document
+ *     description: Allows admins, moderators, and educators to upload a document with an optional watermark, and save the document's details in the database.
+ *     tags:
+ *       - Documents
+ *     security:
+ *       - jwt_token: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: The file to upload (supports various formats).
+ *               file_name:
+ *                 type: string
+ *                 description: The name of the file.
+ *               subject:
+ *                 type: string
+ *                 description: The subject related to the document.
+ *               grade:
+ *                 type: string
+ *                 description: The grade level for the document.
+ *               keywords:
+ *                 type: string
+ *                 description: Comma-separated keywords related to the document.
+ *     responses:
+ *       201:
+ *         description: File uploaded successfully, and document created.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: "File uploaded, document created, and keywords linked successfully"
+ *                 file:
+ *                   type: object
+ *                   description: The details of the created document.
+ *       400:
+ *         description: Invalid request (e.g., no file selected or unsupported file format).
+ *       403:
+ *         description: Access denied. Only admins, moderators, and educators can upload documents.
+ *       500:
+ *         description: Server error.
+ */
+
+
+
 
 // Upload file to SeaweedFS, handle keywords, and create a document
-
-
-
-
 
 app.post('/documents', uploadLimiter, authorize, async (req, res) => {
   try {
@@ -914,16 +1319,96 @@ app.post('/documents', uploadLimiter, authorize, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /search-documents:
+ *   get:
+ *     summary: Search for documents
+ *     description: Allows users to search for documents based on various criteria such as file name, subject, grade, rating, uploader, status, and keywords. Supports both logged-in and anonymous users.
+ *     tags:
+ *       - Documents
+ *     parameters:
+ *       - in: query
+ *         name: file_name
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: The name of the file to search for.
+ *       - in: query
+ *         name: subject
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: The subject associated with the documents.
+ *       - in: query
+ *         name: grade
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: The grade level of the documents.
+ *       - in: query
+ *         name: rating
+ *         schema:
+ *           type: number
+ *           format: double
+ *         required: false
+ *         description: Minimum rating of the documents to search for.
+ *       - in: query
+ *         name: uploaded_by
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: ID of the user who uploaded the documents.
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: The status of the documents (e.g., approved, pending).
+ *       - in: query
+ *         name: keywords
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Comma-separated keywords to search for in the documents.
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved the list of documents matching the search criteria.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   file_id:
+ *                     type: integer
+ *                     description: The unique ID of the file.
+ *                   file_name:
+ *                     type: string
+ *                     description: The name of the file.
+ *                   subject:
+ *                     type: string
+ *                     description: The subject of the document.
+ *                   grade:
+ *                     type: string
+ *                     description: The grade level of the document.
+ *                   rating:
+ *                     type: number
+ *                     format: double
+ *                     description: The rating of the document.
+ *                   storage_path:
+ *                     type: string
+ *                     description: The path where the document is stored.
+ *                   uploaded_by:
+ *                     type: integer
+ *                     description: ID of the user who uploaded the document.
+ *       500:
+ *         description: Server error.
+ */
 
-//--------------------------------------------------------------------------
 
-
-//------------------21 Sep [Searching Modified by Kenewang]--------------------------------------------
-// Search documents by file_name, subject, grade, rating, uploaded_by, status, and keywords
-// Function to log user navigation (page visit)
-
-
-// Document search route for both logged-in and anonymous users [24 Sep Kenewang]
+// Document search route for both logged-in and anonymous users 
 app.get('/search-documents', async (req, res) => {
   const { file_name, subject, grade, rating, uploaded_by, status, keywords } = req.query;
 
@@ -1004,17 +1489,59 @@ app.get('/search-documents', async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /moderate-document:
+ *   post:
+ *     summary: Moderate a document
+ *     description: Allows admins and moderators to approve or reject documents. The action taken, along with comments, is logged for reference.
+ *     tags:
+ *       - Moderation
+ *     security:
+ *       - Bearer: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file_id:
+ *                 type: integer
+ *                 description: The ID of the document being moderated.
+ *               action:
+ *                 type: string
+ *                 enum: [approved, rejected]
+ *                 description: The action to take on the document (either 'approved' or 'rejected').
+ *               comments:
+ *                 type: string
+ *                 description: Optional comments about the moderation action.
+ *     responses:
+ *       200:
+ *         description: Document moderated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Confirmation message.
+ *                 updatedFile:
+ *                   type: object
+ *                   description: The updated document details.
+ *       403:
+ *         description: Access denied. Only admins and moderators can moderate documents.
+ *       400:
+ *         description: Invalid action provided.
+ *       404:
+ *         description: Document not found or could not update status.
+ *       500:
+ *         description: Server error.
+ */
 
 
-
-//---------------------------------------------------------------------------
-
-
-
-
-
-
-//----[kenewang] Implement moderation features for approving or rejecting documents -----
+//Implement moderation features for approving or rejecting documents -----
 //update the file’s status whenever the moderator makes a decision
 
 app.post("/moderate-document", authorize, async (req, res) => {
@@ -1066,8 +1593,52 @@ app.post("/moderate-document", authorize, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /rate-file:
+ *   post:
+ *     summary: Rate a document
+ *     description: Allows authenticated users to rate a document. If the user is not logged in, the rating is stored using a session ID. The average rating of the document is updated accordingly.
+ *     tags:
+ *       - Rating
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file_id:
+ *                 type: integer
+ *                 description: The ID of the document being rated.
+ *               rating:
+ *                 type: integer
+ *                 description: The rating given to the document (must be between 1 and 5).
+ *     responses:
+ *       200:
+ *         description: Rating submitted successfully, along with the updated average rating.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Confirmation message.
+ *                 averageRating:
+ *                   type: number
+ *                   format: float
+ *                   description: The new average rating for the document.
+ *       400:
+ *         description: Validation error due to missing file ID or rating, or if the rating is outside the allowed range (1-5).
+ *       404:
+ *         description: Document not found.
+ *       500:
+ *         description: Server error.
+ */
 
-// Rating submission route  [Kenewang (original)]
+
+
 // Route to rate a file [Otshepeng 24 Sep]
 
 app.post("/rate-file", async (req, res) => {
@@ -1171,9 +1742,46 @@ app.post("/rate-file", async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /report-document:
+ *   post:
+ *     summary: Report a document
+ *     description: Allows authenticated users to report a document for review. The report includes the document ID, the reporter's ID (if logged in), and the reason for the report. The report status is set to 'pending'.
+ *     tags:
+ *       - Reporting
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file_id:
+ *                 type: integer
+ *                 description: The ID of the document being reported.
+ *               reason:
+ *                 type: string
+ *                 description: The reason for reporting the document.
+ *     responses:
+ *       201:
+ *         description: Report submitted successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Confirmation message indicating the report was submitted.
+ *       400:
+ *         description: Validation error due to missing file ID or reason for the report.
+ *       500:
+ *         description: Server error.
+ */
 
 
-//---document reporting [aadil] modified by [kenewang] 22 Sep ---------------------------------
+//---document reporting route
 
 app.post('/report-document', authorize, async (req, res) => {
   const { file_id, reason } = req.body;
@@ -1184,7 +1792,6 @@ app.post('/report-document', authorize, async (req, res) => {
     reporter_id = req.user.id;  // Get the reporter's user ID if logged in
   }
   
-
   try {
     // Insert a new report into the database
     await pool.query(
@@ -1204,8 +1811,54 @@ app.post('/report-document', authorize, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /reports:
+ *   get:
+ *     summary: Get all pending reports
+ *     description: Fetches all pending reports submitted by users. Only accessible by users with 'admin' or 'moderator' roles.
+ *     tags:
+ *       - Reporting
+ *     responses:
+ *       200:
+ *         description: A list of pending reports successfully retrieved.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   report_id:
+ *                     type: integer
+ *                     description: The ID of the report.
+ *                   file_id:
+ *                     type: integer
+ *                     description: The ID of the reported document.
+ *                   reason:
+ *                     type: string
+ *                     description: The reason for reporting the document.
+ *                   status:
+ *                     type: string
+ *                     description: The current status of the report.
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *                     description: The timestamp when the report was created.
+ *                   reporter_fname:
+ *                     type: string
+ *                     description: The first name of the user who reported the document.
+ *                   reporter_lname:
+ *                     type: string
+ *                     description: The last name of the user who reported the document.
+ *       403:
+ *         description: Access denied. Only admins and moderators can view reports.
+ *       500:
+ *         description: Server error.
+ */
 
-// Get all pending reports (for moderators)
+
+// Get all pending reports (for moderators) route
 app.get('/reports', authorize, async (req, res) => {
   try {
     // Check if the user has the correct role
@@ -1235,10 +1888,73 @@ app.get('/reports', authorize, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /moderate-report:
+ *   post:
+ *     summary: Moderate a reported document
+ *     description: Allows admins and moderators to approve or reject a reported document.
+ *     tags:
+ *       - Reporting
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               report_id:
+ *                 type: integer
+ *                 description: The ID of the report to be moderated.
+ *               action:
+ *                 type: string
+ *                 description: The action to be taken, either 'resolved' or 'rejected'.
+ *             example:
+ *               report_id: 123
+ *               action: "resolved"
+ *     responses:
+ *       200:
+ *         description: Report has been moderated successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: A message confirming the moderation action.
+ *                 report:
+ *                   type: object
+ *                   description: The moderated report.
+ *                   properties:
+ *                     report_id:
+ *                       type: integer
+ *                       description: The ID of the report.
+ *                     file_id:
+ *                       type: integer
+ *                       description: The ID of the reported document.
+ *                     status:
+ *                       type: string
+ *                       description: The updated status of the report.
+ *                     reason:
+ *                       type: string
+ *                       description: The reason for the report.
+ *                     created_at:
+ *                       type: string
+ *                       format: date-time
+ *                       description: The time the report was created.
+ *       400:
+ *         description: Invalid action. Use 'resolved' or 'rejected'.
+ *       403:
+ *         description: Access denied. Only admins and moderators can moderate reports.
+ *       404:
+ *         description: Report not found.
+ *       500:
+ *         description: Server error.
+ */
 
 
-
-// Moderate a report (approve or reject)
+// Moderate a report (approve or reject) route
 app.post('/moderate-report', authorize, async (req, res) => {
   const { report_id, action } = req.body;
 
@@ -1279,13 +1995,50 @@ app.post('/moderate-report', authorize, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /activity-logs:
+ *   get:
+ *     summary: Get all activity logs
+ *     description: Retrieve all activity logs in the system. Only accessible to admins and moderators.
+ *     tags:
+ *       - Activity Logs
+ *     security:
+ *       - jwt_token: []
+ *     responses:
+ *       200:
+ *         description: A list of activity logs.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   log_id:
+ *                     type: integer
+ *                     description: The unique ID of the activity log.
+ *                   user_id:
+ *                     type: integer
+ *                     description: The ID of the user who performed the action.
+ *                   activity_type:
+ *                     type: string
+ *                     description: The type of activity performed (e.g., login, document upload).
+ *                   description:
+ *                     type: string
+ *                     description: Additional information about the activity.
+ *                   timestamp:
+ *                     type: string
+ *                     format: date-time
+ *                     description: The time the activity occurred.
+ *       403:
+ *         description: Access denied. Only admins and moderators can view activity logs.
+ *       500:
+ *         description: Server error.
+ */
 
 
-//----------------------------------------------------------------------------
-
-
-//------25 Sep 2024 Analytics [Kenewang ]
-// Get all activity logs (only for admins and moderators)
+// Get all activity logs (only for admins and moderators) route
 app.get('/activity-logs', authorize, async (req, res) => {
   try {
     // Check if the logged-in user is an admin or moderator
@@ -1305,8 +2058,50 @@ app.get('/activity-logs', authorize, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /analytics:
+ *   get:
+ *     summary: Get all user analytics
+ *     description: Retrieve all user analytics data in the system. Only accessible to admins and moderators.
+ *     tags:
+ *       - User Analytics
+ *     security:
+ *       - jwt_token: []
+ *     responses:
+ *       200:
+ *         description: A list of user analytics.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   analytics_id:
+ *                     type: integer
+ *                     description: The unique ID of the analytics record.
+ *                   user_id:
+ *                     type: integer
+ *                     description: The ID of the user whose activity is tracked.
+ *                   page_visited:
+ *                     type: string
+ *                     description: The page visited by the user.
+ *                   time_spent:
+ *                     type: string
+ *                     description: The duration the user spent on the page.
+ *                   visit_date:
+ *                     type: string
+ *                     format: date-time
+ *                     description: The date and time of the visit.
+ *       403:
+ *         description: Access denied. Only admins and moderators can view user analytics.
+ *       500:
+ *         description: Server error.
+ */
 
-// Get all user analytics (only for admins and moderators)
+
+// Get all user analytics (only for admins and moderators) route
 app.get('/analytics', authorize, async (req, res) => {
   try {
     // Check if the logged-in user is an admin or moderator
@@ -1326,8 +2121,62 @@ app.get('/analytics', authorize, async (req, res) => {
   }
 });
 
-//---------25 Sep FAQ [Otshepeng modified by Kenewang]
+/**
+ * @swagger
+ * /faq:
+ *   post:
+ *     summary: Add a new FAQ
+ *     description: Allows admins or moderators to create a new FAQ entry in the system.
+ *     tags:
+ *       - FAQs
+ *     security:
+ *       - jwt_token: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               question:
+ *                 type: string
+ *                 description: The question for the FAQ.
+ *             required:
+ *               - question
+ *     responses:
+ *       200:
+ *         description: FAQ created successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Success message.
+ *                 faq:
+ *                   type: object
+ *                   properties:
+ *                     faq_id:
+ *                       type: integer
+ *                       description: The unique ID of the FAQ.
+ *                     question:
+ *                       type: string
+ *                       description: The question in the FAQ.
+ *                     created_by:
+ *                       type: integer
+ *                       description: ID of the user who created the FAQ.
+ *       400:
+ *         description: Missing or invalid question.
+ *       403:
+ *         description: Access denied. Only admins or moderators can create FAQs.
+ *       500:
+ *         description: Server error.
+ */
 
+
+// Add a FAQ route 
+ 
 app.post("/faq", authorize, async (req, res) => {
   const { question } = req.body;
 
@@ -1360,6 +2209,53 @@ app.post("/faq", authorize, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /faq_answer:
+ *   post:
+ *     summary: Add an answer to a FAQ
+ *     description: Allows admins or moderators to provide an answer for a specific FAQ entry.
+ *     tags:
+ *       - FAQs
+ *     security:
+ *       - jwt_token: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               faq_id:
+ *                 type: integer
+ *                 description: The ID of the FAQ to which the answer is being added.
+ *               answer:
+ *                 type: string
+ *                 description: The answer text for the FAQ.
+ *             required:
+ *               - faq_id
+ *               - answer
+ *     responses:
+ *       200:
+ *         description: Answer added successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Success message.
+ *       400:
+ *         description: Missing FAQ ID or answer.
+ *       403:
+ *         description: Permission denied. Only admins or moderators can add answers to FAQs.
+ *       500:
+ *         description: Server error.
+ */
+
+
+//FAQ answer route
 
 app.post("/faq_answer", authorize, async (req, res) => {
   const { faq_id, answer } = req.body;
@@ -1394,7 +2290,46 @@ app.post("/faq_answer", authorize, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /faqs:
+ *   get:
+ *     summary: Retrieve all FAQs
+ *     description: Fetches a list of all frequently asked questions (FAQs) sorted by creation date.
+ *     tags:
+ *       - FAQs
+ *     responses:
+ *       200:
+ *         description: A list of FAQs successfully retrieved.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   faq_id:
+ *                     type: integer
+ *                     description: Unique identifier for the FAQ.
+ *                   question:
+ *                     type: string
+ *                     description: The FAQ question.
+ *                   answer:
+ *                     type: string
+ *                     description: The answer to the FAQ.
+ *                   created_by:
+ *                     type: integer
+ *                     description: ID of the user who created the FAQ.
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *                     description: Timestamp of when the FAQ was created.
+ *       500:
+ *         description: Server error.
+ */
 
+
+//Route to view FAQs
 
 app.get("/faqs", async (req, res) => {
   try {
@@ -1426,9 +2361,58 @@ app.get("/faqs", async (req, res) => {
   }
 });
 
-
-
-//26 September Kenewang  ---------------------------------------
+/**
+ * @swagger
+ * /convert-to-pdf/{file_id}:
+ *   get:
+ *     summary: Convert a file to PDF
+ *     description: Converts a specified file to PDF format if it's not already in PDF format. If the file is already a PDF, it returns an error.
+ *     tags:
+ *       - File Conversion
+ *     parameters:
+ *       - name: file_id
+ *         in: path
+ *         required: true
+ *         description: The unique identifier of the file to be converted.
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: The file was successfully converted to PDF and saved.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Confirmation message about the successful conversion.
+ *                 pdfUrl:
+ *                   type: string
+ *                   description: URL of the newly converted PDF file.
+ *       400:
+ *         description: The file is already in PDF format or missing parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Error message detailing the issue.
+ *       404:
+ *         description: The specified file was not found in the database.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   description: Error message indicating the file was not found.
+ *       500:
+ *         description: Server error occurred during the conversion process.
+ */
 
 
 // Route to convert a file to PDF (if it's not already PDF)
@@ -1505,22 +2489,12 @@ app.get('/convert-to-pdf/:file_id', async (req, res) => {
 
 
 
-
-
-
-//----------------------------------------------------------------
-
-
-
-
 // Start server only if not in test environment
 if (process.env.NODE_ENV !== 'test') {
   app.listen(3000, () => {
     console.log("Server is running on port 3000");
   });
 }
-
-
 
 module.exports = {
   jwtGenerator, authorize
