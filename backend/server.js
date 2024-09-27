@@ -640,8 +640,6 @@ module.exports = addWatermarkToPDF;
 
 
 
-// Function to add watermark to DOCX
-
 
 // Function to add watermark to DOCX
 async function addWatermarkToDocx(buffer) {
@@ -670,8 +668,77 @@ async function addWatermarkToDocx(buffer) {
 module.exports = addWatermarkToDocx;
 
 
+// Function to add watermark to Excel documents
+const ExcelJS = require('exceljs');
+
+async function addWatermarkToExcel(buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);  // Load the workbook from the buffer
+  
+  workbook.eachSheet((sheet) => {
+    // Add watermark in the footer of each worksheet
+    sheet.headerFooter.oddFooter = 'Share2Teach License - CC BY-NC-ND 4.0';  // Centered in footer
+  });
+
+  // Generate the modified Excel file as a Buffer
+  const modifiedBuffer = await workbook.xlsx.writeBuffer();
+  return modifiedBuffer;
+}
+
+module.exports = addWatermarkToExcel;
 
 
+
+// Function to add watermark to Powerpoint presentations
+const PptxGenJS = require("pptxgenjs");
+
+async function addWatermarkToPpt() {
+  const ppt = new PptxGenJS();
+
+  // Add a slide and watermark text
+  const slide = ppt.addSlide();
+  slide.addText('Content of the slide', { x: 1, y: 1, fontSize: 24 });
+
+  // Add watermark text at the bottom
+  slide.addText('Share2Teach License - CC BY-NC-ND 4.0', {
+    x: 0.5,
+    y: '90%',
+    fontSize: 12,
+    color: '808080',
+    align: 'center',
+  });
+
+  // Write the presentation to a base64 string
+  const pptBase64 = await ppt.write('base64');
+
+  // Convert the base64 string to a buffer
+  const buffer = Buffer.from(pptBase64, 'base64');
+
+  return buffer;  // Return the buffer for further processing
+}
+
+module.exports = addWatermarkToPpt;
+
+
+
+
+
+
+
+// Function to add watermark to Textfiles
+async function addWatermarkToTxt(buffer) {
+  const originalText = buffer.toString('utf-8');  // Convert buffer to string
+  const watermarkText = '\n\nShare2Teach License - CC BY-NC-ND 4.0\n';
+
+  // Add the watermark text at the end of the document
+  const modifiedText = originalText + watermarkText;
+
+  // Convert the modified text back to buffer
+  const modifiedBuffer = Buffer.from(modifiedText, 'utf-8');
+  return modifiedBuffer;
+}
+
+module.exports = addWatermarkToTxt;
 
 
 
@@ -709,6 +776,11 @@ function checkFileType(file, cb) {
   }
 }
 
+
+
+
+
+
 // Multer setup without local storage, just validation
 const storage = multer.memoryStorage(); // Store in memory buffer, not locally
 const upload = multer({
@@ -722,6 +794,10 @@ const upload = multer({
 
 // Convert Multer to Promise-based for async/await
 const uploadAsync = util.promisify(upload);
+
+
+
+
 
 // Helper function to upsert keywords (insert if not exists, otherwise retrieve existing ones)
 async function upsertKeywords(pool, keywords) {
@@ -741,11 +817,14 @@ async function upsertKeywords(pool, keywords) {
   return keywordIds;
 }
 
-// Upload file to SeaweedFS, handle keywords, and create a document
+
 
 // Upload file to SeaweedFS, handle keywords, and create a document
 
-// Upload file to SeaweedFS, handle keywords, and create a document
+
+
+
+
 app.post('/documents', uploadLimiter, authorize, async (req, res) => {
   try {
     console.log('Request Body:', req.body);
@@ -759,16 +838,25 @@ app.post('/documents', uploadLimiter, authorize, async (req, res) => {
 
     // Perform the file upload using multer (stored in memory)
     await uploadAsync(req, res);
-    
+
     if (!req.file) {
       return res.status(400).send({ message: 'No file selected!' });
     }
 
-    // Add watermark or license to the file (e.g., PDF or DOCX)
-    if (req.file.mimetype === 'application/pdf') {
+    // Add watermark depending on file type
+    const mimeType = req.file.mimetype;
+    if (mimeType === 'application/pdf') {
       req.file.buffer = await addWatermarkToPDF(req.file.buffer);
-    } else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       req.file.buffer = await addWatermarkToDocx(req.file.buffer);
+    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || mimeType === 'application/vnd.ms-excel') {
+      req.file.buffer = await addWatermarkToExcel(req.file.buffer);
+    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || mimeType === 'application/vnd.ms-powerpoint') {
+      req.file.buffer = await addWatermarkToPpt(req.file.buffer);
+    } else if (mimeType === 'text/plain') {
+      req.file.buffer = await addWatermarkToTxt(req.file.buffer);
+    } else {
+      return res.status(400).send({ message: 'Unsupported file format!' });
     }
 
     // Create FormData and append the file for SeaweedFS upload
@@ -815,14 +903,10 @@ app.post('/documents', uploadLimiter, authorize, async (req, res) => {
       await pool.query('INSERT INTO public."FILE_KEYWORD" (file_id, keyword_id) VALUES ($1, $2)', [fileId, keywordId]);
     }
 
-
-    // Log the file upload action [Kenewang 24 Sep]
+    // Log the file upload action
     await logUserAction(req.user.id, "file_upload", `Uploaded file: ${req.body.file_name}`);
 
     res.status(201).json({ msg: "File uploaded, document created, and keywords linked successfully", file: fileResult.rows[0] });
-
-
-
   } catch (err) {
     console.error('Caught error:', err);
     res.status(500).send({ message: err.message || err });
