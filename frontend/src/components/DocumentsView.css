@@ -1,0 +1,93 @@
+.documents-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #f8f8f8; /* Same background as other pages */
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background-color: #f8f8f8;
+  }
+  
+  .logo {
+    font-size: 24px;
+    font-weight: bold;
+  }
+  
+  /* Updated nav to move it to the far right */
+  .nav {
+    display: flex;
+    align-items: center;
+    margin-left: auto; /* Moves nav items to the far right */
+  }
+  
+  .nav a {
+    margin-right: 15px;
+    text-decoration: none;
+    color: black;
+    font-size: 16px;
+  }
+  
+  .search-bar {
+    padding-left: 5px;
+    font-size: 14px;
+    width: 200px;
+  }
+  
+  /* Style the table */
+  .documents-table {
+    width: 80%;
+    margin: 50px auto;
+    border-collapse: collapse;
+  }
+  
+  .documents-table th,
+  .documents-table td {
+    border: 1px solid #d3d3d3;
+    padding: 10px;
+    text-align: left;
+  }
+  
+  .documents-table th {
+    background-color: #eaeaea;
+    font-weight: bold;
+  }
+  
+  /* Button styling */
+  .view-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 5px;
+  }
+  
+  .view-button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Action container for the View button and three-dots icon */
+.action-container {
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Style the three-dots icon */
+  .three-dots {
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 18px;
+  }
+  
+
+  .search-filter {
+    margin-right: 10px;
+    padding: 5px;
+    font-size: 14px;
+  }
+  

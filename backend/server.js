@@ -755,7 +755,13 @@ app.post("/active_user", authorize, async (req, res) => {
 // Document list route for both logged-in and anonymous users
 app.get('/documents', async (req, res) => {
   try {
-    let query = `SELECT * FROM public."FILE" WHERE status = 'approved'`; // Default for non-logged-in users
+    let query = `
+      SELECT f.file_id, f.file_name, g.grade_name, s.subject_name, f.rating, f.storage_path 
+      FROM public."FILE" f
+      JOIN public."GRADE" g ON f.grade = g.grade_id
+      JOIN public."SUBJECT" s ON f.subject = s.subject_id
+      WHERE f.status = 'approved'`; // Default for non-logged-in users
+
     const values = [];
 
     // Check if the user is logged in
@@ -776,7 +782,11 @@ app.get('/documents', async (req, res) => {
 
     // If the user is logged in and is an admin or moderator, fetch all documents
     if (userRole === 'admin' || userRole === 'moderator') {
-      query = `SELECT * FROM public."FILE"`; // Fetch all documents for admin and moderator
+      query = `
+        SELECT f.file_id, f.file_name, g.grade_name, s.subject_name, f.rating, f.storage_path 
+        FROM public."FILE" f
+        JOIN public."GRADE" g ON f.grade = g.grade_id
+        JOIN public."SUBJECT" s ON f.subject = s.subject_id`; // Fetch all documents for admin and moderator
     }
 
     // Fetch the documents from the database
@@ -790,6 +800,7 @@ app.get('/documents', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 /**
@@ -1411,7 +1422,7 @@ app.post('/documents', uploadLimiter, authorize, async (req, res) => {
 
 // Document search route for both logged-in and anonymous users 
 app.get('/search-documents', async (req, res) => {
-  const { file_name, subject, grade, rating, uploaded_by, status, keywords } = req.query;
+  const { file_name, subject_name, grade_name, rating, uploaded_by, status, keywords } = req.query;
 
   try {
     // Build the query with dynamic filters
@@ -1430,15 +1441,15 @@ app.get('/search-documents', async (req, res) => {
       query += ` AND f.file_name ILIKE $${valueIndex++}`;
       values.push(`%${file_name}%`);
     }
-    
-    if (subject) {
-      query += ` AND f.subject = $${valueIndex++}`;
-      values.push(subject);
+
+    if (subject_name) {
+      query += ` AND f.subject_name ILIKE $${valueIndex++}`;
+      values.push(`%${subject_name}%`);
     }
 
-    if (grade) {
-      query += ` AND f.grade = $${valueIndex++}`;
-      values.push(grade);
+    if (grade_name) {
+      query += ` AND f.grade_name = $${valueIndex++}`;
+      values.push(grade_name);
     }
 
     if (rating) {
@@ -1459,30 +1470,25 @@ app.get('/search-documents', async (req, res) => {
     if (keywords) {
       const keywordList = keywords.split(',').map(k => k.trim());
       query += ` AND k.keyword ILIKE ANY($${valueIndex++})`;
-      values.push(keywordList.map(kw => `%${kw}%`)); // Search for any keyword
+      values.push(keywordList.map(kw => `%${kw}%`));
     }
 
     // Execute the query
     const result = await pool.query(query, values);
 
-    // Check if the user is logged in or not
-    let user_id = null;  // Default to null for anonymous users
-
-    // If JWT is provided, extract the user info (this requires middleware to decode JWT)
+    // Log the search action
+    let user_id = null;
     if (req.headers.authorization) {
       try {
-        const token = req.headers.authorization.split(' ')[1]; // Assuming 'Bearer <token>'
+        const token = req.headers.authorization.split(' ')[1];
         const decoded = jwt.verify(token, process.env.jwtSecret);
-        user_id = decoded.user.id; // Use logged-in user's ID
+        user_id = decoded.user.id;
       } catch (err) {
         console.error("JWT error: ", err.message);
       }
     }
 
-    // Log the search action (with user_id being either null for anonymous or the actual user ID)
     await logPageVisit(user_id, 'Document Search', null);
-
-    // Return the filtered documents
     res.status(200).json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

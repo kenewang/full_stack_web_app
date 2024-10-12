@@ -12,7 +12,7 @@ const LandingPage = () => {
         <nav className="nav">
           <Link to="/create-account">Create account</Link>
           <Link to="/login">Login</Link>
-          <Link to="/view-subjects-docs">View subjects and documents</Link>
+          <Link to="/documents">View subjects and documents</Link>
           <Link to="/contributors">Contributors</Link>
           <Link to="/faq">FAQ</Link>
           <Link to="/about-us">About Us</Link>
