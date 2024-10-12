@@ -55,6 +55,7 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 // Swagger route
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
+app.use(cors());
 
 // Database connection
 const pool = new Pool({

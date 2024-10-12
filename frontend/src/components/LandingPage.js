@@ -1,22 +1,24 @@
 // src/components/LandingPage.js
 import React from 'react';
-import './LandingPage.css'; // Import the CSS file for styling
+import { Link } from 'react-router-dom';  // Import Link from react-router-dom
+import './LandingPage.css';  // Import the CSS file for styling
 
 const LandingPage = () => {
   return (
     <div className="landing-page">
       <header className="header">
-        <h1 className="logo">Share2Teach</h1>
+      <h1 className="logo">Share2Teach</h1>
+        
         <nav className="nav">
-          <a href="/create-account">Create account</a>
-          <a href="/login">Login</a>
-          <a href="/view-subjects-docs">View subjects and documents</a>
-          <a href="/contributors">Contributors</a>
-          <a href="/faq">FAQ</a>
-          <a href="/about-us">About Us</a>
+          <Link to="/create-account">Create account</Link>
+          <Link to="/login">Login</Link>
+          <Link to="/view-subjects-docs">View subjects and documents</Link>
+          <Link to="/contributors">Contributors</Link>
+          <Link to="/faq">FAQ</Link>
+          <Link to="/about-us">About Us</Link>
         </nav>
       </header>
-
+      
       <footer className="footer">
         <button className="contact-us">Contact Us</button>
         <div className="social-media-icons">Social Media Icons</div>

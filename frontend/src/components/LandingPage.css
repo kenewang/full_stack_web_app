@@ -13,13 +13,17 @@
     justify-content: space-between;
     padding: 20px;
     background-color: #f8f8f8;
+
   }
   
   .logo {
-    font-size: 24px;
+    font-size: 35px;
     font-weight: bold;
+    position: absolute;
+    left: 0
   }
   
+
   .nav a {
     margin: 0 15px;
     text-decoration: none;
@@ -59,3 +63,4 @@
     color: gray;
   }
   
+ 
