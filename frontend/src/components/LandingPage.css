@@ -1,0 +1,61 @@
+/* src/components/LandingPage.css */
+
+.landing-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100vh;
+    text-align: center;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px;
+    background-color: #f8f8f8;
+  }
+  
+  .logo {
+    font-size: 24px;
+    font-weight: bold;
+  }
+  
+  .nav a {
+    margin: 0 15px;
+    text-decoration: none;
+    color: black;
+    font-size: 16px;
+  }
+  
+  .nav a:hover {
+    color: #007bff;
+  }
+  
+  .footer {
+    background-color: #f1f1f1;
+    padding: 20px;
+    position: relative;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .contact-us {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+  }
+  
+  .social-media-icons {
+    margin-right: 20px;
+  }
+  
+  .copyright {
+    font-size: 14px;
+    color: gray;
+  }
+  
