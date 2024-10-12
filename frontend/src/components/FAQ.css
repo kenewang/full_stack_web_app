@@ -59,3 +59,7 @@
   cursor: pointer;
   color: black;
 }
+
+.logo {
+  margin-top: -45px; /* Adjust the value as needed */
+}

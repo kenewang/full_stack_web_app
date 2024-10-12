@@ -1,5 +1,7 @@
 // src/components/FAQ.js
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';  // Import Link from react-router-dom
+
 import './FAQ.css';
 
 const FAQ = () => {
@@ -30,15 +32,17 @@ const FAQ = () => {
     <div className="faq-page">
       <header className="header">
         <nav className="nav">
-          <a href="/create-account">Create account</a>
-          <a href="/login">Login</a>
-          <a href="/view-subjects-docs">View subjects and documents</a>
-          <a href="/contributors">Contributors</a>
-          <a href="/about-us">About Us</a>
+        <Link to="/create-account">Create account</Link>
+        <Link to="/login">Login</Link>
+        <Link to="/view-subjects-docs">View subjects and documents</Link>
+        <Link to="/contributors">Contributors</Link>
+        <Link to="/about-us">About Us</Link>
         </nav>
       </header>
 
-      <h1 className="logo">Share2Teach</h1>
+      <Link to="/">
+  <h1 className="logo">Share2Teach</h1>
+</Link>
 
       <div className="faq-content">
         <h2>FAQs</h2>
