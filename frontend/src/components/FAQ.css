@@ -61,7 +61,7 @@
 }
 
 .logo {
-  position: relative;
-  top: -20px; /* Moves it up by 20px */
+  margin-left: 10px; /* Adjust the value to move further left */
+  margin-top: -20px;
 }
 

@@ -1,12 +1,11 @@
 // src/components/LandingPage.js
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';  // Import useNavigate
-import './LandingPage.css';  // Import the CSS file for styling
+import { Link, useNavigate } from 'react-router-dom';
+import './LandingPage.css';
 
 const LandingPage = ({ isAuthenticated, setAuth }) => {
   const navigate = useNavigate();
 
-  // Handle logout
   const handleLogout = async () => {
     try {
       const response = await fetch("http://localhost:3000/logout", {
@@ -19,13 +18,8 @@ const LandingPage = ({ isAuthenticated, setAuth }) => {
       const parseRes = await response.json();
 
       if (response.ok) {
-        // Remove the token from local storage
         localStorage.removeItem("token");
-
-        // Set authentication to false
         setAuth(false);
-
-        // Redirect to the landing page
         navigate("/");
       } else {
         alert(parseRes.msg || "Logout failed");
@@ -47,9 +41,7 @@ const LandingPage = ({ isAuthenticated, setAuth }) => {
               <Link to="/login">Login</Link>
             </>
           ) : (
-            <div onClick={handleLogout} style={{ cursor: 'pointer' }}>
-  Logout
-</div>
+            <div onClick={handleLogout} style={{ cursor: 'pointer' }}>Logout</div>
           )}
           <Link to="/documents">View subjects and documents</Link>
           <Link to="/contributors">Contributors</Link>

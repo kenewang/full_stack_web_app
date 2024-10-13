@@ -1,0 +1,73 @@
+/* Center the form vertically and horizontally */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  
+  /* Style the form */
+  form {
+    display: flex;
+    flex-direction: column;
+    width: 300px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    background-color: #f9f9f9;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Style the input fields */
+  input {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+  }
+  
+  /* Button styling */
+  button {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  /* Button hover effect */
+  button:hover {
+    background-color: #45a049;
+  }
+  
+  /* Style the header */
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  /* Forgot Password link styling */
+  .forgot-password-container p {
+    color: blue;
+    cursor: pointer;
+    text-align: left;
+    font-size: 14px;
+  }
+  
+  /* Style the forgot password message */
+  .forgot-password-container p:hover {
+    text-decoration: underline;
+  }
+  
+  /* Style for any messages shown (e.g., forgot password message) */
+  .forgot-password-message {
+    font-size: 14px;
+    color: green;
+    margin-top: 10px;
+    text-align: center;
+  }
+  

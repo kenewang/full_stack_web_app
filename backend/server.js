@@ -446,8 +446,8 @@ app.post("/forgot-password", async (req, res) => {
       [resetToken, tokenExpiration, email]
     );
     
-    // Send reset email
-    const resetLink = `http://localhost:3000/reset-password/${resetToken}`;
+    // Send reset email - make sure it points to the frontend URL
+    const resetLink = `http://localhost:3001/reset-password/${resetToken}`; // Now points to the frontend
     const mailOptions = {
       from: process.env.EMAIL,
       to: email,
