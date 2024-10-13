@@ -1,10 +1,9 @@
 // src/components/FAQ.js
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';  // Import Link from react-router-dom
-
+import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 import './FAQ.css';
 
-const FAQ = () => {
+const FAQ = ({ isAuthenticated }) => {
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,17 +31,22 @@ const FAQ = () => {
     <div className="faq-page">
       <header className="header">
         <nav className="nav">
-        <Link to="/create-account">Create account</Link>
-        <Link to="/login">Login</Link>
-        <Link to="/documents">View subjects and documents</Link>
-        <Link to="/contributors">Contributors</Link>
-        <Link to="/about-us">About Us</Link>
+          {/* Hide these links if authenticated */}
+          {!isAuthenticated && (
+            <>
+              <Link to="/create-account">Create account</Link>
+              <Link to="/login">Login</Link>
+            </>
+          )}
+          <Link to="/documents">View subjects and documents</Link>
+          <Link to="/contributors">Contributors</Link>
+          <Link to="/about-us">About Us</Link>
         </nav>
       </header>
 
       <Link to="/">
-  <h1 className="logo">Share2Teach</h1>
-</Link>
+        <h1 className="logo">Share2Teach</h1>
+      </Link>
 
       <div className="faq-content">
         <h2>FAQs</h2>

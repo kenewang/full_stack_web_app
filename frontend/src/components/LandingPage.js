@@ -1,17 +1,56 @@
 // src/components/LandingPage.js
 import React from 'react';
-import { Link } from 'react-router-dom';  // Import Link from react-router-dom
+import { Link, useNavigate } from 'react-router-dom';  // Import useNavigate
 import './LandingPage.css';  // Import the CSS file for styling
 
-const LandingPage = () => {
+const LandingPage = ({ isAuthenticated, setAuth }) => {
+  const navigate = useNavigate();
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/logout", {
+        method: "POST",
+        headers: {
+          "jwt_token": localStorage.getItem('token'), 
+        },
+      });
+
+      const parseRes = await response.json();
+
+      if (response.ok) {
+        // Remove the token from local storage
+        localStorage.removeItem("token");
+
+        // Set authentication to false
+        setAuth(false);
+
+        // Redirect to the landing page
+        navigate("/");
+      } else {
+        alert(parseRes.msg || "Logout failed");
+      }
+    } catch (err) {
+      console.error("Error logging out:", err.message);
+    }
+  };
+
   return (
     <div className="landing-page">
       <header className="header">
-      <h1 className="logo">Share2Teach</h1>
+        <h1 className="logo">Share2Teach</h1>
         
         <nav className="nav">
-          <Link to="/create-account">Create account</Link>
-          <Link to="/login">Login</Link>
+          {!isAuthenticated ? (
+            <>
+              <Link to="/register">Create account</Link>
+              <Link to="/login">Login</Link>
+            </>
+          ) : (
+            <div onClick={handleLogout} style={{ cursor: 'pointer' }}>
+  Logout
+</div>
+          )}
           <Link to="/documents">View subjects and documents</Link>
           <Link to="/contributors">Contributors</Link>
           <Link to="/faq">FAQ</Link>

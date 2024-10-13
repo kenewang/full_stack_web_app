@@ -135,7 +135,7 @@ function jwtGenerator(user) {
   return jwt.sign(payload, process.env.jwtSecret, { expiresIn: "1h" });
 }
 
-// Updated Authorization Middleware [24 Sep]
+// Updated Authorization Middleware
 function authorize(req, res, next) {
   const token = req.header("jwt_token"); // Get the token from the request headers
   if (!token) {
@@ -171,7 +171,7 @@ function authorize(req, res, next) {
   }
 }
 
-// Function to log user actions [Kenewang 24 Sep]
+// Function to log user actions 
 async function logUserAction(user_id, activity_type, description) {
   try {
     await pool.query(
