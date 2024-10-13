@@ -6,7 +6,8 @@ const DocumentsView = () => {
   const [documents, setDocuments] = useState([]);
   const [searchText, setSearchText] = useState(''); // To capture user input
   const [filter, setFilter] = useState('file_name'); // Default filter is file_name
-  const navigate = useNavigate(); // Replaced useHistory with useNavigate
+  const [showRateButton, setShowRateButton] = useState(null); // To track which file shows the Rate File button
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Fetch the documents from the backend
@@ -31,12 +32,20 @@ const DocumentsView = () => {
       const queryParams = new URLSearchParams({
         [filter]: searchText, // Set the filter dynamically based on dropdown
       });
-      navigate(`/search-results?${queryParams.toString()}`); // Use navigate instead of history.push
+      navigate(`/search-results?${queryParams.toString()}`);
     }
   };
 
   const handleView = (path) => {
     window.open(path, '_blank'); // Open the document in a new tab
+  };
+
+  const toggleRateButton = (fileId) => {
+    setShowRateButton((prev) => (prev === fileId ? null : fileId)); // Toggle display of Rate File button
+  };
+
+  const handleRate = (fileId) => {
+    navigate(`/rate-document/${fileId}`); // Redirect to the rate document page
   };
 
   return (
@@ -56,8 +65,8 @@ const DocumentsView = () => {
             onChange={(e) => setFilter(e.target.value)}
           >
             <option value="file_name">File Name</option>
-            <option value="subject_name">Subject Name</option> {/* Updated */}
-            <option value="grade_name">Grade Name</option> {/* Updated */}
+            <option value="subject_name">Subject Name</option>
+            <option value="grade_name">Grade Name</option>
             <option value="rating">Rating</option>
             <option value="uploaded_by">Uploaded By</option>
             <option value="status">Status</option>
@@ -70,8 +79,8 @@ const DocumentsView = () => {
             placeholder="Search document" 
             className="search-bar"
             value={searchText}
-            onChange={(e) => setSearchText(e.target.value)} // Capture search input
-            onKeyDown={handleSearch} // Trigger search on 'Enter' key press
+            onChange={(e) => setSearchText(e.target.value)}
+            onKeyDown={handleSearch}
           />
         </nav>
       </header>
@@ -83,7 +92,7 @@ const DocumentsView = () => {
             <th>Grade</th>
             <th>File Name</th>
             <th>Rating</th>
-            <th></th> {/* Empty header for the view button and action menu */} 
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -96,7 +105,10 @@ const DocumentsView = () => {
               <td>
                 <div className="action-container">
                   <button className="view-button" onClick={() => handleView(doc.storage_path)}>View</button>
-                  <span className="three-dots">&#x22EE;</span> {/* Three-dots menu */}
+                  <span className="three-dots" onClick={() => toggleRateButton(doc.file_id)}>&#x22EE;</span>
+                  {showRateButton === doc.file_id && (
+                    <button className="rate-button" onClick={() => handleRate(doc.file_id)}>Rate File</button>
+                  )}
                 </div>
               </td>
             </tr>
