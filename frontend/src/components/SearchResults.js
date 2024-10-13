@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import './SearchResults.css';
 
 const SearchResults = () => {
   const [searchResults, setSearchResults] = useState([]);
+  const [showRateButton, setShowRateButton] = useState(null); // Track which file shows the Rate File button
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchSearchResults = async () => {
@@ -23,14 +25,21 @@ const SearchResults = () => {
   }, [location.search]);
 
   const handleView = (path) => {
-    window.open(path, '_blank');
+    window.open(path, '_blank'); // Open document in a new tab
+  };
+
+  const toggleRateButton = (fileId) => {
+    setShowRateButton((prev) => (prev === fileId ? null : fileId)); // Toggle display of Rate File button
+  };
+
+  const handleRate = (fileId) => {
+    navigate(`/rate-document/${fileId}`); // Redirect to the rate document page
   };
 
   return (
     <div className="search-results-page">
       <header className="header">
         <Link to="/"><h1 className="logo">Share2Teach</h1></Link>
-        
         <nav className="nav">
           <Link to="/faq" className="faq-link">FAQ</Link>
         </nav>
@@ -46,7 +55,10 @@ const SearchResults = () => {
                 <button className="view-button" onClick={() => handleView(doc.storage_path)}>
                   View
                 </button>
-                <span className="three-dots">&#x22EE;</span> {/* Three-dots menu */}
+                <span className="three-dots" onClick={() => toggleRateButton(doc.file_id)}>&#x22EE;</span>
+                {showRateButton === doc.file_id && (
+                  <button className="rate-button" onClick={() => handleRate(doc.file_id)}>Rate File</button>
+                )}
               </div>
             </div>
           ))
