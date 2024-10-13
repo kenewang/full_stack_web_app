@@ -1,0 +1,112 @@
+/* Container for the entire search results page */
+.search-results-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #f8f8f8;
+  }
+  
+  /* Header section with the logo and FAQ */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background-color: #f8f8f8;
+  }
+  
+  /* Styling for the Share2Teach logo */
+  .logo {
+    font-size: 24px;
+    font-weight: bold;
+    margin-top: 10px;
+  }
+  
+  /* Navigation container */
+  .nav {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+  }
+  
+  /* Styling for the FAQ link */
+  .faq-link {
+    margin-left: 20px;
+    text-decoration: none;
+    color: black;
+    font-size: 16px;
+    font-weight: bold;
+  }
+  
+  /* Styling for the search results container */
+  .search-results-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background-color: #f8f8f8;
+  }
+  
+  /* Title of the search results section */
+  .search-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 30px;
+  }
+  
+  /* Container for each individual result item */
+  .result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    width: 80%;
+    background-color: white;
+  }
+  
+  /* Styling for the file name inside the result item */
+  .file-name {
+    font-size: 18px;
+    margin-right: 20px;
+  }
+  
+  /* Button styling */
+  .view-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 16px;
+  }
+  
+  .view-button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Action container for the View button and three-dots icon */
+  .action-container {
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Style the three-dots icon */
+  .three-dots {
+    cursor: pointer;
+    margin-left: 10px;
+    font-size: 18px;
+  }
+  
+  /* Footer styling */
+  .footer {
+    background-color: #f1f1f1;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  

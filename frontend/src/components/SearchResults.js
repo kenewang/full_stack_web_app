@@ -1,56 +1,64 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
+import './SearchResults.css';
 
 const SearchResults = () => {
   const [searchResults, setSearchResults] = useState([]);
-  const location = useLocation(); // Get the current location
-  const searchParams = new URLSearchParams(location.search); // Get the search parameters from URL
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
 
   useEffect(() => {
     const fetchSearchResults = async () => {
       try {
-        // Build the search query dynamically
         const query = searchParams.toString();
-        
-        // Make an API request to your backend with the query
         const response = await fetch(`http://localhost:3000/search-documents?${query}`);
         const data = await response.json();
-        setSearchResults(data); // Set the search results in state
+        setSearchResults(data);
       } catch (error) {
         console.error('Error fetching search results:', error);
       }
     };
 
     fetchSearchResults();
-  }, [location.search]); // Re-fetch whenever the search parameters change
+  }, [location.search]);
+
+  const handleView = (path) => {
+    window.open(path, '_blank');
+  };
 
   return (
-    <div>
-      <h2>Search Results</h2>
-      {searchResults.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Subject</th>
-              <th>Grade</th>
-              <th>File Name</th>
-              <th>Rating</th>
-            </tr>
-          </thead>
-          <tbody>
-            {searchResults.map((doc) => (
-              <tr key={doc.file_id}>
-                <td>{doc.subject_name}</td>
-                <td>{doc.grade_name}</td>
-                <td>{doc.file_name}</td>
-                <td>{doc.rating}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p>No results found.</p>
-      )}
+    <div className="search-results-page">
+      <header className="header">
+        <Link to="/"><h1 className="logo">Share2Teach</h1></Link>
+        
+        <nav className="nav">
+          <Link to="/faq" className="faq-link">FAQ</Link>
+        </nav>
+      </header>
+
+      <div className="search-results-container">
+        <h2 className="search-title">Search Results</h2>
+        {searchResults.length > 0 ? (
+          searchResults.map((doc) => (
+            <div key={doc.file_id} className="result-item">
+              <p className="file-name">{doc.file_name}</p>
+              <div className="action-container">
+                <button className="view-button" onClick={() => handleView(doc.storage_path)}>
+                  View
+                </button>
+                <span className="three-dots">&#x22EE;</span> {/* Three-dots menu */}
+              </div>
+            </div>
+          ))
+        ) : (
+          <p>No results found.</p>
+        )}
+      </div>
+      <footer className="footer">
+        <button className="contact-us">Contact Us</button>
+        <div className="social-media-icons">Social Media Icons</div>
+        <p className="copyright">Copyright 2024 Share2Teach</p>
+      </footer>
     </div>
   );
 };

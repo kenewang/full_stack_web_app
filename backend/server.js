@@ -1427,8 +1427,10 @@ app.get('/search-documents', async (req, res) => {
   try {
     // Build the query with dynamic filters
     let query = `
-      SELECT DISTINCT f.*
+      SELECT DISTINCT f.*, s.subject_name, g.grade_name
       FROM public."FILE" f
+      LEFT JOIN public."SUBJECT" s ON f.subject = s.subject_id
+      LEFT JOIN public."GRADE" g ON f.grade = g.grade_id
       LEFT JOIN public."FILE_KEYWORD" fk ON f.file_id = fk.file_id
       LEFT JOIN public."KEYWORD" k ON fk.keyword_id = k.keyword_id
       WHERE 1 = 1
@@ -1443,17 +1445,18 @@ app.get('/search-documents', async (req, res) => {
     }
 
     if (subject_name) {
-      query += ` AND f.subject_name ILIKE $${valueIndex++}`;
+      query += ` AND s.subject_name ILIKE $${valueIndex++}`;
       values.push(`%${subject_name}%`);
     }
 
     if (grade_name) {
-      query += ` AND f.grade_name = $${valueIndex++}`;
-      values.push(grade_name);
+      query += ` AND g.grade_name ILIKE $${valueIndex++}`;
+      values.push(`%${grade_name}%`);
     }
 
+    // Update for exact match on rating
     if (rating) {
-      query += ` AND f.rating >= $${valueIndex++}`;
+      query += ` AND f.rating = $${valueIndex++}`;  // Exact match for rating
       values.push(rating);
     }
 
@@ -1494,6 +1497,7 @@ app.get('/search-documents', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 
 /**

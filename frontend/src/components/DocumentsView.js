@@ -103,6 +103,12 @@ const DocumentsView = () => {
           ))}
         </tbody>
       </table>
+
+      <footer className="footer">
+        <button className="contact-us">Contact Us</button>
+        <div className="social-media-icons">Social Media Icons</div>
+        <p className="copyright">Copyright 2024 Share2Teach</p>
+      </footer>
     </div>
   );
 };

@@ -61,5 +61,7 @@
 }
 
 .logo {
-  margin-top: -45px; /* Adjust the value as needed */
+  position: relative;
+  top: -20px; /* Moves it up by 20px */
 }
+
