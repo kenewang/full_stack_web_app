@@ -9,6 +9,7 @@ import RateDocument from './components/RateDocument';
 import Register from './components/Register';
 import Login from './components/Login'; // Import Login component
 import ResetPassword from './components/ResetPassword'; // Import ResetPassword component
+import FileUpload from './components/FileUpload';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
@@ -40,6 +41,7 @@ function App() {
           <Route path="/login" element={<Login setAuth={setAuth} />} />
           {/* Add the reset-password route */}
           <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/upload" element={<FileUpload />} />
         </Routes>
       </Router>
     </Fragment>

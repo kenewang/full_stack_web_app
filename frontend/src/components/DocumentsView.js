@@ -7,16 +7,26 @@ const DocumentsView = () => {
   const [searchText, setSearchText] = useState(''); // To capture user input
   const [filter, setFilter] = useState('file_name'); // Default filter is file_name
   const [showRateButton, setShowRateButton] = useState(null); // To track which file shows the Rate File button
+  const [userRole, setUserRole] = useState(''); // Store user role
   const navigate = useNavigate();
 
   useEffect(() => {
     // Fetch the documents from the backend
     const fetchDocuments = async () => {
       try {
-        const response = await fetch('http://localhost:3000/documents'); // Adjust to match your backend route
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/documents', {
+          headers: {
+            "jwt_token": token
+          }
+        });
         const data = await response.json();
-        console.log(data); // Log the data to check what is being returned
+        console.log(data);
         setDocuments(data);
+
+        // Extract user role from token
+        const decodedToken = JSON.parse(atob(token.split('.')[1]));
+        setUserRole(decodedToken.user.role);
       } catch (error) {
         console.error('Error fetching documents:', error);
       }
@@ -28,7 +38,6 @@ const DocumentsView = () => {
   // Handle search functionality
   const handleSearch = (event) => {
     if (event.key === 'Enter') {
-      // Perform search and redirect to results page with query params
       const queryParams = new URLSearchParams({
         [filter]: searchText, // Set the filter dynamically based on dropdown
       });
@@ -54,11 +63,18 @@ const DocumentsView = () => {
         <Link to="/"><h1 className="logo">Share2Teach</h1></Link>
 
         <nav className="nav">
+          {userRole && ['educator', 'moderator', 'admin'].includes(userRole) && (
+            <Link to="/upload" className="upload-link">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24px" height="24px">
+              <path d="M5 20h14v-2H5v2zm7-9l-5 5h3v4h4v-4h3l-5-5zm0-7v12h-2V4h2z"/>
+            </svg>
+              <span>File Upload</span>
+            </Link>
+          )}
           <Link to="/faq">
             <a>FAQ</a>
           </Link>
 
-          {/* Dropdown for selecting search filter */}
           <select 
             className="search-filter" 
             value={filter} 
@@ -73,7 +89,6 @@ const DocumentsView = () => {
             <option value="keywords">Keywords</option>
           </select>
 
-          {/* Search bar */}
           <input 
             type="text" 
             placeholder="Search document" 
