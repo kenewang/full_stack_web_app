@@ -24,6 +24,16 @@ const DocumentsView = ({ setAuth }) => {
             }
           });
 
+          // Check if the token has expired (403 or 401 error)
+          if (response.status === 403 || response.status === 401) {
+            // Token expired, handle logout
+            localStorage.removeItem('token');
+            setAuth(false); // Reset the authentication state
+            setIsAuthenticated(false);
+            navigate("/login"); // Redirect to login page
+            return;
+          }
+
           // Decode token to get user role and check if authenticated
           const decodedToken = JSON.parse(atob(token.split('.')[1]));
           setUserRole(decodedToken.user.role);
@@ -42,7 +52,7 @@ const DocumentsView = ({ setAuth }) => {
     };
 
     fetchDocuments();
-  }, []);
+  }, [setAuth, navigate]);
 
   const handleLogout = async () => {
     try {

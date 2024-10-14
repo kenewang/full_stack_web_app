@@ -15,6 +15,14 @@ const LandingPage = ({ isAuthenticated, setAuth }) => {
         },
       });
 
+      // Handle token expiration
+      if (response.status === 403 || response.status === 401) {
+        localStorage.removeItem("token");
+        setAuth(false);
+        navigate("/login");
+        return;
+      }
+
       const parseRes = await response.json();
 
       if (response.ok) {

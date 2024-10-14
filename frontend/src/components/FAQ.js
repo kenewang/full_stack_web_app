@@ -10,7 +10,18 @@ const FAQ = ({ isAuthenticated, setAuth }) => {
   useEffect(() => {
     const fetchFAQs = async () => {
       try {
+        const token = localStorage.getItem('token');
         const response = await fetch('http://localhost:3000/faqs'); // Adjust URL if needed
+
+         // Handle token expiration
+         if (response.status === 403 || response.status === 401) {
+          localStorage.removeItem("token");
+          setAuth(false);
+          navigate("/login");
+          return;
+        }
+
+
         const data = await response.json();
         setFaqs(data);
         setLoading(false);
@@ -21,7 +32,7 @@ const FAQ = ({ isAuthenticated, setAuth }) => {
     };
 
     fetchFAQs();
-  }, []);
+  }, [setAuth, navigate]);
 
   const handleLogout = async () => {
     try {
