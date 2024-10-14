@@ -1,9 +1,18 @@
-/* Center the form vertically and horizontally */
+/* Container to position the form and heading */
 .file-upload-container {
     display: flex;
-    justify-content: center;
+    flex-direction: column; /* Stack heading and form vertically */
+    justify-content: flex-start; /* Align form and heading at the top */
     align-items: center;
     height: 100vh;
+    padding-top: 50px; /* Space above the form to center within the viewport */
+}
+
+/* Style the heading */
+h2 {
+    font-size: 24px;
+    margin-bottom: 20px; /* Add space between heading and form */
+    text-align: center;
 }
 
 /* Style the form */
@@ -16,6 +25,7 @@ form {
     border-radius: 10px;
     background-color: #f9f9f9;
     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    margin-top: 10px; /* Adjust space between form and heading */
 }
 
 /* Style the input fields and select dropdowns */
@@ -42,12 +52,6 @@ button {
 /* Button hover effect */
 button:hover {
     background-color: #45a049;
-}
-
-/* Style the header */
-h2 {
-    text-align: center;
-    margin-bottom: 20px;
 }
 
 /* Style for any messages shown (e.g., success or error messages) */
