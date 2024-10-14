@@ -1,11 +1,11 @@
-// src/components/FAQ.js
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom'; // Import Link from react-router-dom
+import { Link, useNavigate } from 'react-router-dom'; // Import useNavigate for logout
 import './FAQ.css';
 
-const FAQ = ({ isAuthenticated }) => {
+const FAQ = ({ isAuthenticated, setAuth }) => {
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchFAQs = async () => {
@@ -23,6 +23,28 @@ const FAQ = ({ isAuthenticated }) => {
     fetchFAQs();
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/logout", {
+        method: "POST",
+        headers: {
+          "jwt_token": localStorage.getItem('token'),
+        },
+      });
+
+      if (response.ok) {
+        localStorage.removeItem("token");
+        setAuth(false); // Update the authentication state
+        navigate("/"); // Redirect to the landing page
+      } else {
+        const parseRes = await response.json();
+        alert(parseRes.msg || "Logout failed");
+      }
+    } catch (err) {
+      console.error("Error logging out:", err.message);
+    }
+  };
+
   if (loading) {
     return <div>Loading FAQs...</div>;
   }
@@ -31,12 +53,15 @@ const FAQ = ({ isAuthenticated }) => {
     <div className="faq-page">
       <header className="header">
         <nav className="nav">
-          {/* Hide these links if authenticated */}
-          {!isAuthenticated && (
+          {/* Show Create account and Login if NOT authenticated */}
+          {!isAuthenticated ? (
             <>
               <Link to="/create-account">Create account</Link>
               <Link to="/login">Login</Link>
             </>
+          ) : (
+            // Show Logout if authenticated
+            <div onClick={handleLogout} style={{ cursor: 'pointer' }}>Logout</div>
           )}
           <Link to="/documents">View subjects and documents</Link>
           <Link to="/contributors">Contributors</Link>
