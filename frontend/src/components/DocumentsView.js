@@ -6,9 +6,11 @@ const DocumentsView = ({ setAuth }) => {
   const [documents, setDocuments] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [filter, setFilter] = useState('file_name');
-  const [showRateButton, setShowRateButton] = useState(null);
-  const [userRole, setUserRole] = useState(''); // Store user role
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Check if user is authenticated
+  const [showRateButton, setShowRateButton] = useState(null); 
+  const [userRole, setUserRole] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(false); // New state for loading dialog
+  const [loadingMessage, setLoadingMessage] = useState(''); // Message to show during loading
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,30 +26,27 @@ const DocumentsView = ({ setAuth }) => {
             }
           });
 
-          // Check if the token has expired (403 or 401 error)
           if (response.status === 403 || response.status === 401) {
-            // Token expired, handle logout
             localStorage.removeItem('token');
-            setAuth(false); // Reset the authentication state
+            setAuth(false); 
             setIsAuthenticated(false);
-            navigate("/login"); // Redirect to login page
+            navigate("/login");
             return;
           }
 
-          // Decode token to get user role and check if authenticated
           const decodedToken = JSON.parse(atob(token.split('.')[1]));
           setUserRole(decodedToken.user.role);
-          setIsAuthenticated(true); // Set user as authenticated
+          setIsAuthenticated(true);
         } else {
           response = await fetch('http://localhost:3000/documents');
-          setIsAuthenticated(false); // User is not authenticated
+          setIsAuthenticated(false);
         }
 
         const data = await response.json();
         setDocuments(data);
       } catch (error) {
         console.error('Error fetching documents:', error);
-        setIsAuthenticated(false); // In case of error, set user as not authenticated
+        setIsAuthenticated(false);
       }
     };
 
@@ -65,9 +64,9 @@ const DocumentsView = ({ setAuth }) => {
 
       if (response.ok) {
         localStorage.removeItem("token");
-        setAuth(false);  // Update the authentication state in parent component
-        setIsAuthenticated(false); // Update local authentication state
-        navigate("/");  // Redirect to the LandingPage
+        setAuth(false);
+        setIsAuthenticated(false);
+        navigate("/");
       } else {
         const parseRes = await response.json();
         alert(parseRes.msg || "Logout failed");
@@ -98,13 +97,33 @@ const DocumentsView = ({ setAuth }) => {
     navigate(`/rate-document/${fileId}`);
   };
 
+  // Handle the "Convert to PDF" action with loading indicator
+  const handleConvertToPDF = async (fileId) => {
+    try {
+      setLoading(true); // Show loading dialog
+      setLoadingMessage('Converting document to PDF...');
+      const res = await fetch(`http://localhost:3000/convert-to-pdf/${fileId}`);
+      const data = await res.json();
+      setLoading(false); // Hide loading dialog
+
+      if (res.ok && data.pdfUrl) {
+        window.open(data.pdfUrl, '_blank'); // Open the converted PDF in a new tab
+      } else {
+        alert("Failed to convert document to PDF");
+      }
+    } catch (err) {
+      console.error("Error converting to PDF:", err.message);
+      setLoading(false); // Hide loading dialog on error
+      alert("Error converting document to PDF");
+    }
+  };
+
   return (
     <div className="documents-page">
       <header className="header">
         <Link to="/"><h1 className="logo">Share2Teach</h1></Link>
 
         <nav className="nav">
-          {/* Conditionally render File Upload link for authorized roles */}
           {userRole && ['educator', 'moderator', 'admin'].includes(userRole) && (
             <Link to="/upload" className="upload-link">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24px" height="24px">
@@ -114,7 +133,6 @@ const DocumentsView = ({ setAuth }) => {
             </Link>
           )}
 
-          {/* Conditionally render the Logout link only if authenticated */}
           {isAuthenticated && (
             <div onClick={handleLogout} style={{ cursor: 'pointer', marginLeft: '10px' }}>Logout</div>
           )}
@@ -168,7 +186,10 @@ const DocumentsView = ({ setAuth }) => {
                   <button className="view-button" onClick={() => handleView(doc.storage_path)}>View</button>
                   <span className="three-dots" onClick={() => toggleRateButton(doc.file_id)}>&#x22EE;</span>
                   {showRateButton === doc.file_id && (
-                    <button className="rate-button" onClick={() => handleRate(doc.file_id)}>Rate File</button>
+                    <>
+                      <button className="rate-button" onClick={() => handleRate(doc.file_id)}>Rate File</button>
+                      <button className="convert-button" onClick={() => handleConvertToPDF(doc.file_id)}>Convert to PDF</button>
+                    </>
                   )}
                 </div>
               </td>
@@ -176,6 +197,15 @@ const DocumentsView = ({ setAuth }) => {
           ))}
         </tbody>
       </table>
+
+      {/* Show the loading dialog */}
+      {loading && (
+        <div className="loading-dialog">
+          <div className="loading-content">
+            <p>{loadingMessage}</p>
+          </div>
+        </div>
+      )}
 
       <footer className="footer">
         <button className="contact-us">Contact Us</button>
