@@ -55,7 +55,11 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 // Swagger route
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3001', // Replace with your frontend URL
+  methods: 'GET,POST,PUT,DELETE',
+  credentials: true, // Allow credentials (cookies, authorization headers)
+}));
 
 // Database connection
 const pool = new Pool({
@@ -2497,6 +2501,31 @@ app.get('/convert-to-pdf/:file_id', async (req, res) => {
     res.status(500).send("Server error");
   }
 });
+
+
+//Subjects Route:
+app.get('/subjects', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM public."SUBJECT" ORDER BY subject_name');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching subjects:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+//Grades Routes
+
+app.get('/grades', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM public."GRADE" ORDER BY grade_name');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error fetching grades:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
 
 
