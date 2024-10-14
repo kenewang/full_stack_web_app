@@ -34,7 +34,7 @@ function App() {
             element={<LandingPage isAuthenticated={isAuthenticated} setAuth={setAuth} />} 
           />
           <Route path="/faq" element={<FAQ isAuthenticated={isAuthenticated} />} />  
-          <Route path="/documents" element={<DocumentsView />} />
+          <Route path="/documents" element={<DocumentsView setAuth={setAuth}/>} />
           <Route path="/search-results" element={<SearchResults />} />
           <Route path="/rate-document/:file_id" element={<RateDocument />} />
           <Route path="/register" element={<Register setAuth={setAuth} />} />

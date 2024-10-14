@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import './DocumentsView.css';
 import { Link, useNavigate } from 'react-router-dom';
 
-const DocumentsView = () => {
+const DocumentsView = ({setAuth}) => {
+  // Accept setAuth as a prop
   const [documents, setDocuments] = useState([]);
   const [searchText, setSearchText] = useState(''); // To capture user input
   const [filter, setFilter] = useState('file_name'); // Default filter is file_name
@@ -34,6 +35,29 @@ const DocumentsView = () => {
 
     fetchDocuments();
   }, []);
+
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("http://localhost:3000/logout", {
+        method: "POST",
+        headers: {
+          "jwt_token": localStorage.getItem('token'),
+        },
+      });
+
+      const parseRes = await response.json();
+      if (response.ok) {
+        localStorage.removeItem("token");
+        setAuth(false);  // Update the authentication state
+        navigate("/");  // Redirect to the LandingPage
+      } else {
+        alert(parseRes.msg || "Logout failed");
+      }
+    } catch (err) {
+      console.error("Error logging out:", err.message);
+    }
+  };
 
   // Handle search functionality
   const handleSearch = (event) => {
@@ -70,7 +94,17 @@ const DocumentsView = () => {
             </svg>
               <span>File Upload</span>
             </Link>
+
+           
+
+            
+            
+
+
           )}
+
+<div onClick={handleLogout} style={{ cursor: 'pointer', marginLeft: '10px' }}>Logout</div>
+ 
           <Link to="/faq">
             <a>FAQ</a>
           </Link>
