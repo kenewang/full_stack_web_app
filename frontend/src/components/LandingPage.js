@@ -1,10 +1,15 @@
 // src/components/LandingPage.js
 import React from 'react';
+import { useEffect } from 'react'; // Import useEffect
 import { Link, useNavigate } from 'react-router-dom';
 import './LandingPage.css';
 
 const LandingPage = ({ isAuthenticated, setAuth }) => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "Share2Teach"; // Set the tab name to "Share2Teach"
+  }, []); // This ensures the title is set when the component mounts
 
   const handleLogout = async () => {
     try {

@@ -17,6 +17,8 @@ const FileModeration = ({ setAuth }) => {
 
   // Fetch pending documents
   useEffect(() => {
+    document.title = "Share2Teach"; // Set the tab name to "Share2Teach"
+    
     const fetchPendingDocuments = async () => {
       try {
         const token = localStorage.getItem('token');

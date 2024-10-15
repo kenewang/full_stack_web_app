@@ -19,6 +19,7 @@ const DocumentsView = ({ setAuth }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    document.title = "Share2Teach"; // Set the tab name to "Share2Teach"
     const fetchDocuments = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -203,12 +204,10 @@ const DocumentsView = ({ setAuth }) => {
               {['moderator', 'admin'].includes(userRole) && (
                 <>
                   <Link to="/file-moderation" className="moderation-link">
-                    
                     <span>File Moderation</span>
                   </Link>
                   {/* Add Reports link for admins and moderators */}
                   <Link to="/reports" className="reports-link">
-                    
                     <span>Reports</span>
                   </Link>
                 </>
@@ -223,11 +222,16 @@ const DocumentsView = ({ setAuth }) => {
             </>
           )}
 
+          {/* Render Analytics for Admins only and replace FAQ */}
+          {userRole === 'admin' ? (
+            <Link to="/analytics">Analytics</Link>
+          ) : (
+            <Link to="/faq">FAQ</Link>
+          )}
+
           {isAuthenticated && (
             <div onClick={handleLogout} style={{ cursor: 'pointer', marginLeft: '10px' }}>Logout</div>
           )}
-
-          <Link to="/faq">FAQ</Link>
 
           <select 
             className="search-filter" 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react'; // Import useEffect
 import { useNavigate, useParams } from 'react-router-dom'; // Importing the necessary hooks for navigation
 import './RateDocument.css'; // Add custom CSS for styling
 
@@ -8,6 +9,10 @@ const RateDocument = () => {
   const [success, setSuccess] = useState('');
   const { file_id } = useParams(); // Get the document file ID from the URL params
   const navigate = useNavigate(); // Hook to navigate after submission
+
+  useEffect(() => {
+    document.title = "Share2Teach"; // Set the tab name to "Share2Teach"
+  }, []); // This ensures the title is set when the component mounts
 
   // Handler for submitting the rating
   const handleSubmit = async (e) => {

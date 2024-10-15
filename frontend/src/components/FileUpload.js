@@ -18,6 +18,7 @@ const FileUpload = () => {
 
   // Fetch subjects and grades from API on component mount
   useEffect(() => {
+    document.title = "Share2Teach"; // Set the tab name to "Share2Teach"
     const fetchSubjectsAndGrades = async () => {
       try {
         const [subjectsRes, gradesRes] = await Promise.all([

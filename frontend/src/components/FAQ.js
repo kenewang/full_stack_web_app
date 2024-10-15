@@ -8,6 +8,7 @@ const FAQ = ({ isAuthenticated, setAuth }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    document.title = "Share2Teach"; // Set the tab name to "Share2Teach"
     const fetchFAQs = async () => {
       try {
         const token = localStorage.getItem('token');

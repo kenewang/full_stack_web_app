@@ -1,8 +1,13 @@
 import React, { useState } from "react";
+import { useEffect } from 'react'; // Import useEffect
 import { useNavigate } from "react-router-dom";
 
 function Register({ setAuth }) {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "Share2Teach"; // Set the tab name to "Share2Teach"
+  }, []); // This ensures the title is set when the component mounts
 
   const [inputs, setInputs] = useState({
     email: "",

@@ -2108,9 +2108,9 @@ app.post('/moderate-report', authorize, async (req, res) => {
 app.get('/activity-logs', authorize, async (req, res) => {
   try {
     // Check if the logged-in user is an admin or moderator
-    const allowedRoles = ['admin', 'moderator'];
+    const allowedRoles = ['admin'];
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ msg: "Access denied. Only admins and moderators can view activity logs." });
+      return res.status(403).json({ msg: "Access denied. Only admins can view activity logs." });
     }
 
     // Fetch all activity logs
@@ -2129,7 +2129,7 @@ app.get('/activity-logs', authorize, async (req, res) => {
  * /analytics:
  *   get:
  *     summary: Get all user analytics
- *     description: Retrieve all user analytics data in the system. Only accessible to admins and moderators.
+ *     description: Retrieve all user analytics data in the system. Only accessible to admins.
  *     tags:
  *       - User Analytics
  *     security:
@@ -2171,9 +2171,9 @@ app.get('/activity-logs', authorize, async (req, res) => {
 app.get('/analytics', authorize, async (req, res) => {
   try {
     // Check if the logged-in user is an admin or moderator
-    const allowedRoles = ['admin', 'moderator'];
+    const allowedRoles = ['admin'];
     if (!allowedRoles.includes(req.user.role)) {
-      return res.status(403).json({ msg: "Access denied. Only admins and moderators can view user analytics." });
+      return res.status(403).json({ msg: "Access denied. Only admins can view user analytics." });
     }
 
     // Fetch all user analytics

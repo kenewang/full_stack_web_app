@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useEffect } from 'react'; // Import useEffect
 import { useParams } from "react-router-dom"; // Import useParams to get the token
 import axios from "axios"; // Make sure axios is installed
 import './ResetPassword.css'; // Import the CSS file
@@ -8,6 +9,10 @@ const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    document.title = "Share2Teach"; // Set the tab name to "Share2Teach"
+  }, []); // This ensures the title is set when the component mounts
 
   const handleSubmit = async (e) => {
     e.preventDefault();

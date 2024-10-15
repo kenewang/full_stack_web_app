@@ -12,6 +12,7 @@ const SearchResults = () => {
   const searchParams = new URLSearchParams(location.search);
 
   useEffect(() => {
+    document.title = "Share2Teach"; // Set the tab name to "Share2Teach"
     const fetchSearchResults = async () => {
       try {
         const query = searchParams.toString();
