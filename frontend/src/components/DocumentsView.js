@@ -6,13 +6,16 @@ const DocumentsView = ({ setAuth }) => {
   const [documents, setDocuments] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [filter, setFilter] = useState('file_name');
-  const [showRateButton, setShowRateButton] = useState(null); 
+  const [showRateButton, setShowRateButton] = useState(null);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [fileToReport, setFileToReport] = useState(null); // Track the file being reported
   const [userRole, setUserRole] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false); 
-  const [docToDelete, setDocToDelete] = useState(null); 
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [docToDelete, setDocToDelete] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -152,6 +155,42 @@ const DocumentsView = ({ setAuth }) => {
     setShowConfirmDelete(true);
   };
 
+  // Handle the "Report" action
+  const handleReport = (fileId) => {
+    setFileToReport(fileId);
+    setShowReportDialog(true);
+  };
+
+  // Submit the report to the backend
+  const submitReport = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/report-document", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "jwt_token": localStorage.getItem('token'),
+        },
+        body: JSON.stringify({
+          file_id: fileToReport,
+          reason: reportReason,
+        }),
+      });
+      
+      const data = await res.json();
+      setShowReportDialog(false);
+      setReportReason(''); // Reset the reason input
+
+      if (res.ok) {
+        alert("Report submitted successfully!");
+      } else {
+        alert(data.msg || "Failed to submit report");
+      }
+    } catch (err) {
+      console.error("Error reporting document:", err.message);
+      alert("Error reporting document");
+    }
+  };
+
   return (
     <div className="documents-page">
       <header className="header">
@@ -235,6 +274,9 @@ const DocumentsView = ({ setAuth }) => {
                     <>
                       <button className="rate-button" onClick={() => handleRate(doc.file_id)}>Rate File</button>
                       <button className="convert-button" onClick={() => handleConvertToPDF(doc.file_id)}>Convert to PDF</button>
+                      {isAuthenticated && ['open-access', 'educator'].includes(userRole) && (
+                        <button className="report-button" onClick={() => handleReport(doc.file_id)}>Report</button>
+                      )}
                       {isAuthenticated && ['admin', 'moderator', 'educator'].includes(userRole) && (
                         <button className="delete-button" onClick={() => confirmDeleteDocument(doc.file_id)}>Delete</button>
                       )}
@@ -263,6 +305,24 @@ const DocumentsView = ({ setAuth }) => {
             <p>Are you sure you want to delete this document?</p>
             <button onClick={handleDeleteDocument}>Yes</button>
             <button onClick={() => setShowConfirmDelete(false)}>No</button>
+          </div>
+        </div>
+      )}
+
+      {/* Show report dialog */}
+      {showReportDialog && (
+        <div className="report-dialog">
+          <div className="report-content">
+            <h3>Report Document</h3>
+            <label htmlFor="report-reason">Reason:</label>
+            <textarea 
+              id="report-reason" 
+              value={reportReason}
+              onChange={(e) => setReportReason(e.target.value)}
+              placeholder="Enter your reason for reporting this document"
+            ></textarea>
+            <button onClick={submitReport}>Submit Report</button>
+            <button onClick={() => setShowReportDialog(false)}>Cancel</button>
           </div>
         </div>
       )}
