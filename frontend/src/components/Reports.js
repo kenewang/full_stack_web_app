@@ -5,6 +5,7 @@ import './Reports.css'; // Custom styles for reports if necessary
 
 const Reports = ({ setAuth }) => {
   const [reports, setReports] = useState([]);
+  const [showModerationButtons, setShowModerationButtons] = useState(null); // Track which report shows moderation buttons
   const [userRole, setUserRole] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -47,7 +48,7 @@ const Reports = ({ setAuth }) => {
     fetchReports();
   }, [setAuth, navigate]);
 
-
+  // Fetch the storage path of a file and open it in a new tab
   const handleView = async (file_id) => {
     try {
       const response = await fetch(`http://localhost:3000/file-path/${file_id}`, {
@@ -55,21 +56,54 @@ const Reports = ({ setAuth }) => {
           "Authorization": `Bearer ${localStorage.getItem('token')}`,
         },
       });
-  
+
       if (!response.ok) {
         alert("Failed to retrieve file path");
         return;
       }
-  
+
       const data = await response.json();
       const storagePath = data.storage_path;
-  
+
       // Open the file in a new tab
       window.open(storagePath, '_blank');
     } catch (err) {
       console.error("Error fetching file path:", err.message);
       alert("Error fetching file path");
     }
+  };
+
+  // Handle report moderation (Resolve or Reject)
+  const handleModerateReport = async (report_id, action) => {
+    try {
+      const res = await fetch('http://localhost:3000/moderate-report', {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json",
+          "jwt_token": localStorage.getItem('token'),
+        },
+        body: JSON.stringify({
+          report_id,
+          action,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Report has been ${action} successfully!`);
+        window.location.reload(); // Reload the page after moderation
+      } else {
+        alert(data.msg || "Failed to moderate report");
+      }
+    } catch (err) {
+      console.error("Error moderating report:", err.message);
+      alert("Error moderating report");
+    }
+  };
+
+  // Toggle the display of moderation buttons for a specific report
+  const toggleModerationButtons = (report_id) => {
+    setShowModerationButtons((prev) => (prev === report_id ? null : report_id));
   };
 
   return (
@@ -107,7 +141,25 @@ const Reports = ({ setAuth }) => {
                 <td>
                   <div className="action-container">
                     <button className="view-button" onClick={() => handleView(report.file_id)}>View File</button>
-                    {/* Additional action buttons for resolving or rejecting the report can be added here */}
+                    <span className="three-dots" onClick={() => toggleModerationButtons(report.report_id)}>&#x22EE;</span>
+                    {showModerationButtons === report.report_id && (
+                      <>
+                        <button
+                          className="approve-button"
+                          style={{ backgroundColor: 'green', color: 'white' }}  // Resolve button style
+                          onClick={() => handleModerateReport(report.report_id, 'resolved')}
+                        >
+                          Resolve
+                        </button>
+                        <button
+                          className="reject-button"
+                          style={{ backgroundColor: 'red', color: 'white' }}  // Reject button style
+                          onClick={() => handleModerateReport(report.report_id, 'rejected')}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
