@@ -201,12 +201,17 @@ const DocumentsView = ({ setAuth }) => {
           {userRole && ['educator', 'moderator', 'admin'].includes(userRole) && (
             <>
               {['moderator', 'admin'].includes(userRole) && (
-                <Link to="/file-moderation" className="moderation-link">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24px" height="24px">
-                    <path d="M12 2L2 7v2h20V7L12 2zm0 12l-8 5V12l8-5 8 5v7l-8-5z" />
-                  </svg>
-                  <span>File Moderation</span>
-                </Link>
+                <>
+                  <Link to="/file-moderation" className="moderation-link">
+                    
+                    <span>File Moderation</span>
+                  </Link>
+                  {/* Add Reports link for admins and moderators */}
+                  <Link to="/reports" className="reports-link">
+                    
+                    <span>Reports</span>
+                  </Link>
+                </>
               )}
               
               <Link to="/upload" className="upload-link">

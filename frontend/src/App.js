@@ -11,6 +11,7 @@ import Login from './components/Login';
 import ResetPassword from './components/ResetPassword';
 import FileUpload from './components/FileUpload';
 import FileModeration from './components/FileModeration'; // Import FileModeration
+import Reports from './components/Reports'; // Import the Reports component
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
@@ -47,6 +48,7 @@ function App() {
           <Route path="/upload" element={<FileUpload />} />
           {/* Add the FileModeration route */}
           <Route path="/file-moderation" element={<FileModeration setAuth={setAuth} />} />
+          <Route path="/reports" element={<Reports />} />
         </Routes>
       </Router>
     </Fragment>

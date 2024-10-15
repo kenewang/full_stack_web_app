@@ -1930,6 +1930,30 @@ app.get('/reports', authorize, async (req, res) => {
   }
 });
 
+
+// Backend route to get storage_path by file_id
+app.get('/file-path/:file_id', async (req, res) => {
+  const { file_id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'SELECT storage_path FROM public."FILE" WHERE file_id = $1',
+      [file_id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ msg: 'File not found' });
+    }
+
+    res.status(200).json({ storage_path: result.rows[0].storage_path });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+
+
 /**
  * @swagger
  * /moderate-report:

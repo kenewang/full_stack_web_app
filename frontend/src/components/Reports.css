@@ -1,0 +1,25 @@
+/* Reports.css */
+
+.no-reports {
+    text-align: center;
+    font-weight: bold;
+    padding: 10px;
+  }
+  
+  .action-container {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .view-button {
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .view-button:hover {
+    background-color: #0056b3;
+  }
+  
