@@ -99,14 +99,13 @@ const DocumentsView = ({ setAuth }) => {
     navigate(`/rate-document/${fileId}`);
   };
 
-  // Handle the "Convert to PDF" action with loading indicator
   const handleConvertToPDF = async (fileId) => {
     try {
-      setLoading(true); 
+      setLoading(true);
       setLoadingMessage('Converting document to PDF...');
       const res = await fetch(`http://localhost:3000/convert-to-pdf/${fileId}`);
       const data = await res.json();
-      setLoading(false); 
+      setLoading(false);
 
       if (res.ok && data.pdfUrl) {
         window.open(data.pdfUrl, '_blank');
@@ -120,7 +119,6 @@ const DocumentsView = ({ setAuth }) => {
     }
   };
 
-  // Handle the "Delete Document" action
   const handleDeleteDocument = async () => {
     try {
       setLoading(true);
@@ -160,23 +158,32 @@ const DocumentsView = ({ setAuth }) => {
         <Link to="/"><h1 className="logo">Share2Teach</h1></Link>
 
         <nav className="nav">
+          {/* Conditionally render File Upload link and File Moderation link */}
           {userRole && ['educator', 'moderator', 'admin'].includes(userRole) && (
-            <Link to="/upload" className="upload-link">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24px" height="24px">
-                <path d="M5 20h14v-2H5v2zm7-9l-5 5h3v4h4v-4h3l-5-5zm0-7v12h-2V4h2z"/>
-              </svg>
-              <span>File Upload</span>
-            </Link>
+            <>
+              {['moderator', 'admin'].includes(userRole) && (
+                <Link to="/file-moderation" className="moderation-link">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24px" height="24px">
+                    <path d="M12 2L2 7v2h20V7L12 2zm0 12l-8 5V12l8-5 8 5v7l-8-5z" />
+                  </svg>
+                  <span>File Moderation</span>
+                </Link>
+              )}
+              
+              <Link to="/upload" className="upload-link">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24px" height="24px">
+                  <path d="M5 20h14v-2H5v2zm7-9l-5 5h3v4h4v-4h3l-5-5zm0-7v12h-2V4h2z"/>
+                </svg>
+                <span>File Upload</span>
+              </Link>
+            </>
           )}
 
           {isAuthenticated && (
             <div onClick={handleLogout} style={{ cursor: 'pointer', marginLeft: '10px' }}>Logout</div>
           )}
 
-          
-
           <Link to="/faq">FAQ</Link>
-          
 
           <select 
             className="search-filter" 
@@ -228,7 +235,6 @@ const DocumentsView = ({ setAuth }) => {
                     <>
                       <button className="rate-button" onClick={() => handleRate(doc.file_id)}>Rate File</button>
                       <button className="convert-button" onClick={() => handleConvertToPDF(doc.file_id)}>Convert to PDF</button>
-                      {/* Conditionally render Delete button based on user role */}
                       {isAuthenticated && ['admin', 'moderator', 'educator'].includes(userRole) && (
                         <button className="delete-button" onClick={() => confirmDeleteDocument(doc.file_id)}>Delete</button>
                       )}

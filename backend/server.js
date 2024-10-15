@@ -806,6 +806,30 @@ app.get('/documents', async (req, res) => {
 });
 
 
+//admins and moderators "view pending documents" route
+
+app.get('/pending-documents', async (req, res) => {
+  try {
+    let query = `
+      SELECT f.file_id, f.file_name, f.status, f.storage_path 
+      FROM public."FILE" f
+      WHERE f.status = 'pending'`; // Fetch documents with a pending status
+
+    const values = [];
+
+    // Fetch the pending documents from the database
+    const result = await pool.query(query, values);
+
+    // Log the page visit for document moderation (optional, if needed)
+    // await logPageVisit(null, "Pending Documents List", null);
+
+    res.status(200).json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 /**
  * @swagger
