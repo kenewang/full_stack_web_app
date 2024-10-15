@@ -76,7 +76,7 @@ const FAQ = ({ isAuthenticated, setAuth }) => {
             <div onClick={handleLogout} style={{ cursor: 'pointer' }}>Logout</div>
           )}
           <Link to="/documents">View subjects and documents</Link>
-          <Link to="/contributors">Contributors</Link>
+          
           <Link to="/about-us">About Us</Link>
         </nav>
       </header>
@@ -100,10 +100,24 @@ const FAQ = ({ isAuthenticated, setAuth }) => {
       </div>
 
       <footer className="footer">
-        <button className="contact-us">Contact Us</button>
-        <div className="social-media-icons">Social Media Icons</div>
-        <p className="copyright">Copyright 2024 Share2Teach</p>
-      </footer>
+  {/* Use 'mailto' to open the email client */}
+  <a href="mailto:share2teach@gmail.com">
+    <button className="contact-us">Contact Us</button>
+  </a>
+  <div className="social-media-icons">
+    <a href="https://www.facebook.com" target="_blank" rel="noopener noreferrer">
+      <i className="fab fa-facebook-f"></i>
+    </a>
+    <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer">
+      <i className="fab fa-instagram"></i>
+    </a>
+    <a href="https://www.twitter.com" target="_blank" rel="noopener noreferrer">
+      <i className="fab fa-twitter"></i>
+    </a>
+  </div>
+  <p className="copyright">Copyright 2024 Share2Teach</p>
+</footer>
+
     </div>
   );
 };

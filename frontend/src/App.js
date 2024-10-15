@@ -13,6 +13,8 @@ import FileUpload from './components/FileUpload';
 import FileModeration from './components/FileModeration'; // Import FileModeration
 import Reports from './components/Reports'; // Import the Reports component
 import Analytics from './components/Analytics'; // Import the Analytics component
+import '@fortawesome/fontawesome-free/css/all.min.css';
+
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));

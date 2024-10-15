@@ -65,3 +65,18 @@
   margin-top: -20px;
 }
 
+.social-media-icons {
+  display: flex;
+  align-items: center;
+}
+
+.social-media-icons a {
+  color: black;
+  margin: 0 10px;
+  font-size: 24px;
+  text-decoration: none;
+}
+
+.social-media-icons a:hover {
+  color: #007bff;
+}
