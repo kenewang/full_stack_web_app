@@ -67,7 +67,7 @@ const FAQ = ({ isAuthenticated, setAuth }) => {
           {/* Show Create account and Login if NOT authenticated */}
           {!isAuthenticated ? (
             <>
-              <Link to="/create-account">Create account</Link>
+              <Link to="/register">Create account</Link>
               <Link to="/login">Login</Link>
             </>
           ) : (

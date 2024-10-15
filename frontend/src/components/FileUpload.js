@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './FileUpload.css';
 
@@ -13,6 +13,7 @@ const FileUpload = () => {
   const [subjectsList, setSubjectsList] = useState([]);
   const [gradesList, setGradesList] = useState([]);
   const navigate = useNavigate();
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // Modal visibility state
   const [message, setMessage] = useState('');
 
   // Fetch subjects and grades from API on component mount
@@ -43,29 +44,37 @@ const FileUpload = () => {
     formData.append('keywords', keywords);
     formData.append('file', file);
 
-    for (let pair of formData.entries()) {
-        console.log(`${pair[0]}: ${pair[1]}`);
-      }
-    
     try {
-        const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const res = await axios.post('http://localhost:3000/documents', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'jwt_token': token, // Include the JWT token her
+          'jwt_token': token, // Include the JWT token here
         },
       });
       setMessage('File uploaded successfully!');
-      navigate('/documents'); // Redirect to DocumentsView
+      setShowSuccessModal(true); // Show success modal
     } catch (error) {
       console.error('Error uploading file:', error);
       setMessage('Error uploading file!');
     }
   };
 
+  // Handle "OK" button in the success modal
+  const handleModalClose = () => {
+    setShowSuccessModal(false);
+    navigate('/documents'); // Redirect to DocumentsView
+  };
+
   return (
     <div className="file-upload-container">
+      {/* Add a link to the FAQ page in the top right */}
+      <div className="faq-link">
+        <Link to="/faq">FAQ</Link>
+      </div>
+      
       <h2>Upload A Document</h2>
+      
       <form onSubmit={handleSubmit} encType="multipart/form-data">
         <div>
           <label>File Name:</label>
@@ -114,7 +123,16 @@ const FileUpload = () => {
         </div>
         <button type="submit">Submit</button>
       </form>
-      {message && <p>{message}</p>}
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="modal">
+          <div className="modal-content">
+            <p>{message}</p>
+            <button onClick={handleModalClose}>OK</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

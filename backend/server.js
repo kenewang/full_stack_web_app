@@ -1300,17 +1300,20 @@ app.post('/documents', uploadLimiter, authorize, async (req, res) => {
       storagePath = `http://${storagePath}`;
     }
 
-    // Get the document details from the request body
-    const { file_name, subject, grade, keywords } = req.body;
+    // Get the file name with extension and other document details from the request body
+    const { subject, grade, keywords } = req.body;
+    const fileExtension = path.extname(req.file.originalname); // Get the file extension
+    const originalFileName = path.basename(req.file.originalname, fileExtension); // Get file name without extension
+    const fullFileName = `${originalFileName}${fileExtension}`; // Construct file name with extension
 
     // Use the authenticated user's ID for `uploaded_by`
     const uploaded_by = req.user.id;
 
-    // Insert the new file with an initial rating of 0 and the SeaweedFS storage path
+    // Insert the new file with the full file name and SeaweedFS storage path
     const fileResult = await pool.query(
       `INSERT INTO public."FILE" (file_name, subject, grade, rating, storage_path, uploaded_by)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [file_name, subject, grade, 0, storagePath, uploaded_by]
+      [fullFileName, subject, grade, 0, storagePath, uploaded_by]
     );
 
     const fileId = fileResult.rows[0].file_id;
@@ -1325,7 +1328,7 @@ app.post('/documents', uploadLimiter, authorize, async (req, res) => {
     }
 
     // Log the file upload action
-    await logUserAction(req.user.id, "file_upload", `Uploaded file: ${req.body.file_name}`);
+    await logUserAction(req.user.id, "file_upload", `Uploaded file: ${fullFileName}`);
 
     res.status(201).json({ msg: "File uploaded, document created, and keywords linked successfully", file: fileResult.rows[0] });
   } catch (err) {

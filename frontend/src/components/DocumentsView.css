@@ -118,8 +118,19 @@
   margin-left: 10px;
 }
 
+.delete-button
+{
+  margin-left: 10px;
+  background-color: indianred;
+  color: white;
+}
+
 .convert-button:hover {
   background-color: #138496;
+}
+
+.delete-button:hover{
+  background-color: crimson;
 }
 
 
@@ -143,4 +154,30 @@
   text-align: center;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
   font-size: 18px;
+}
+
+.confirm-delete-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.confirm-delete-content {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.confirm-delete-content button {
+  margin: 10px;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
 }

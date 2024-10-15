@@ -20,6 +20,7 @@
   display: flex;
   justify-content: center;
   margin: 20px 0;
+  
 }
 
 .stars button {
@@ -27,6 +28,7 @@
   border: none;
   font-size: 30px;
   cursor: pointer;
+  color:lightsteelblue;
 }
 
 .stars button.selected {

@@ -9,8 +9,10 @@ const DocumentsView = ({ setAuth }) => {
   const [showRateButton, setShowRateButton] = useState(null); 
   const [userRole, setUserRole] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(false); // New state for loading dialog
-  const [loadingMessage, setLoadingMessage] = useState(''); // Message to show during loading
+  const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false); 
+  const [docToDelete, setDocToDelete] = useState(null); 
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,7 +30,7 @@ const DocumentsView = ({ setAuth }) => {
 
           if (response.status === 403 || response.status === 401) {
             localStorage.removeItem('token');
-            setAuth(false); 
+            setAuth(false);
             setIsAuthenticated(false);
             navigate("/login");
             return;
@@ -100,22 +102,56 @@ const DocumentsView = ({ setAuth }) => {
   // Handle the "Convert to PDF" action with loading indicator
   const handleConvertToPDF = async (fileId) => {
     try {
-      setLoading(true); // Show loading dialog
+      setLoading(true); 
       setLoadingMessage('Converting document to PDF...');
       const res = await fetch(`http://localhost:3000/convert-to-pdf/${fileId}`);
       const data = await res.json();
-      setLoading(false); // Hide loading dialog
+      setLoading(false); 
 
       if (res.ok && data.pdfUrl) {
-        window.open(data.pdfUrl, '_blank'); // Open the converted PDF in a new tab
+        window.open(data.pdfUrl, '_blank');
       } else {
         alert("Failed to convert document to PDF");
       }
     } catch (err) {
       console.error("Error converting to PDF:", err.message);
-      setLoading(false); // Hide loading dialog on error
+      setLoading(false);
       alert("Error converting document to PDF");
     }
+  };
+
+  // Handle the "Delete Document" action
+  const handleDeleteDocument = async () => {
+    try {
+      setLoading(true);
+      setLoadingMessage('Deleting document...');
+      const res = await fetch(`http://localhost:3000/documents/${docToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          "jwt_token": localStorage.getItem('token'),
+        },
+      });
+      const data = await res.json();
+      setLoading(false);
+
+      if (res.ok) {
+        setDocuments(documents.filter(doc => doc.file_id !== docToDelete));
+        alert("Document deleted successfully");
+      } else {
+        alert(data.message || "Error deleting document");
+      }
+      setShowConfirmDelete(false);
+    } catch (err) {
+      console.error("Error deleting document:", err.message);
+      setLoading(false);
+      setShowConfirmDelete(false);
+      alert("Error deleting document");
+    }
+  };
+
+  const confirmDeleteDocument = (fileId) => {
+    setDocToDelete(fileId);
+    setShowConfirmDelete(true);
   };
 
   return (
@@ -137,7 +173,10 @@ const DocumentsView = ({ setAuth }) => {
             <div onClick={handleLogout} style={{ cursor: 'pointer', marginLeft: '10px' }}>Logout</div>
           )}
 
+          
+
           <Link to="/faq">FAQ</Link>
+          
 
           <select 
             className="search-filter" 
@@ -189,6 +228,10 @@ const DocumentsView = ({ setAuth }) => {
                     <>
                       <button className="rate-button" onClick={() => handleRate(doc.file_id)}>Rate File</button>
                       <button className="convert-button" onClick={() => handleConvertToPDF(doc.file_id)}>Convert to PDF</button>
+                      {/* Conditionally render Delete button based on user role */}
+                      {isAuthenticated && ['admin', 'moderator', 'educator'].includes(userRole) && (
+                        <button className="delete-button" onClick={() => confirmDeleteDocument(doc.file_id)}>Delete</button>
+                      )}
                     </>
                   )}
                 </div>
@@ -203,6 +246,17 @@ const DocumentsView = ({ setAuth }) => {
         <div className="loading-dialog">
           <div className="loading-content">
             <p>{loadingMessage}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Show confirmation dialog for delete */}
+      {showConfirmDelete && (
+        <div className="confirm-delete-dialog">
+          <div className="confirm-delete-content">
+            <p>Are you sure you want to delete this document?</p>
+            <button onClick={handleDeleteDocument}>Yes</button>
+            <button onClick={() => setShowConfirmDelete(false)}>No</button>
           </div>
         </div>
       )}
