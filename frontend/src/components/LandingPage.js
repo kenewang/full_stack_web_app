@@ -45,7 +45,7 @@ const LandingPage = ({ isAuthenticated, setAuth }) => {
   return (
     <div className="landing-page">
       <header className="header">
-          
+        <h1 className="logo">Share2Teach</h1>
         
         <nav className="nav">
           {!isAuthenticated ? (
