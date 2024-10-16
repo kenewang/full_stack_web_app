@@ -1,31 +1,27 @@
-/* src/components/FAQ.css */
-
-.faq-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-color: #f8f8f8; /* Background similar to landing page */
-}
-
 .header {
   display: flex;
   justify-content: flex-end;
-  padding-left: 200px;
+  padding-left: 100px;
   margin-top: 1em;
   background-color: #f8f8f8;
+  position: relative; /* or absolute, depending on your need */
+  left: -10px; /* Adjust the value to move the element left */
+
 }
 
-.nav a {
-  margin: 0 15px;
+.nav a, .nav div {
+  margin: 0 3px; /* Reduce the space between the links and div */
   text-decoration: none;
   color: black;
   font-size: 16px;
+  
 }
 
-.nav a:hover {
+.nav a:hover, .nav div:hover {
   color: #007bff; /* Hover color */
 }
 
+/* Keep everything else as is */
 .faq-content {
   margin: 50px auto;
   width: 70%;
@@ -79,4 +75,10 @@
 
 .social-media-icons a:hover {
   color: #007bff;
+}
+
+.copyright
+{
+  position: relative; /* or absolute, depending on your need */
+  left: -18px; /* Adjust the value to move the element left */
 }
