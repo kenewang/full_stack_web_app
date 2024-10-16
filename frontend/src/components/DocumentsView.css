@@ -35,7 +35,10 @@
   padding-left: 5px;
   font-size: 14px;
   width: 200px;
+  
+  left: -20px; /* Adjust the value to move the element left */
 }
+
 
 .documents-table {
   width: 80%;
