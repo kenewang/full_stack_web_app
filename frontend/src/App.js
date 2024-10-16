@@ -14,6 +14,7 @@ import FileModeration from './components/FileModeration'; // Import FileModerati
 import Reports from './components/Reports'; // Import the Reports component
 import Analytics from './components/Analytics'; // Import the Analytics component
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import About from './components/About';
 
 
 function App() {
@@ -53,6 +54,7 @@ function App() {
           <Route path="/file-moderation" element={<FileModeration setAuth={setAuth} />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/analytics" element={<Analytics />} /> {/* Add Analytics route */}
+          <Route path ="/about" element={<About />} /> 
         </Routes>
       </Router>
     </Fragment>

@@ -45,7 +45,7 @@ const LandingPage = ({ isAuthenticated, setAuth }) => {
   return (
     <div className="landing-page">
       <header className="header">
-        <h1 className="logo">Share2Teach</h1>
+          
         
         <nav className="nav">
           {!isAuthenticated ? (
@@ -59,7 +59,7 @@ const LandingPage = ({ isAuthenticated, setAuth }) => {
           <Link to="/documents">View subjects and documents</Link>
           
           <Link to="/faq">FAQ</Link>
-          <Link to="/about-us">About</Link>
+          <Link to="/about">About</Link>
         </nav>
       </header>
       

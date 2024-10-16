@@ -77,7 +77,7 @@ const FAQ = ({ isAuthenticated, setAuth }) => {
           )}
           <Link to="/documents">View subjects and documents</Link>
           
-          <Link to="/about-us">About</Link>
+          <Link to="/about">About</Link>
         </nav>
       </header>
 
