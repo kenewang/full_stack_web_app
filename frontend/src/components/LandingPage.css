@@ -1,95 +1,94 @@
 /* src/components/LandingPage.css */
 
 .landing-page {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
   width: 100%;
   height: 100vh; /* Full height of the viewport */
-  background-image: url('C:\Users\User\Desktop\Lennies-Full-Stack-Web-App\frontend\src\components\pikaso_edit.jpeg'); /* Replace with your image path */
+  background-image: url("./pikaso_edit.jpeg");
+  /* Replace with your image path */
   background-size: cover; /* Ensure the image covers the entire screen */
   background-position: center; /* Center the image */
   background-repeat: no-repeat; /* No repetition */
   background-attachment: fixed; /* Keep the background fixed */
 
+  text-align: center;
+}
 
-
-
-    text-align: center;
-  }
-  
-  .header {
-    display: flex;
+.header {
+  display: flex;
   justify-content: space-between; /* Align items horizontally */
   width: 100%;
   padding: 20px;
-  background-color: rgba(248, 248, 248, 0.9); /* Slightly transparent background */
+  background-color: rgba(
+    248,
+    248,
+    248,
+    0.9
+  ); /* Slightly transparent background */
+}
 
-  }
-  
-  .logo {
-    font-size: 35px;
-    font-weight: bold;
-    position: absolute;
-    left: 20px;
-    
-  }
-  
+.logo {
+  font-size: 35px;
+  font-weight: bold;
+  position: absolute;
+  left: 20px;
+}
 
-  .nav a {
-    margin: 0 15px;
-    text-decoration: none;
-    color: black;
-    font-size: 16px;
-  }
-  
-  .nav a:hover {
-    color: #007bff;
-  }
-  
-  .footer {
-    background-color: #f1f1f1;
-    padding: 20px;
-    position: relative;
-    bottom: 0;
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .contact-us {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    cursor: pointer;
-  }
-  
-  .social-media-icons {
-    display: flex;
-    align-items: center;
-    margin-right: 20px;
-  }
-  
-  .copyright {
-    font-size: 14px;
-    color: gray;
-  }
-  
- 
-  .landing-page .social-media-icons p {
-    margin-right: 10px;
-  }
-  
-  .landing-page .social-media-icons a {
-    color: black;
-    margin: 0 10px;
-    font-size: 24px;
-    text-decoration: none;
-  }
-  
-  .landing-page .social-media-icons a:hover {
-    color: #007bff;
-  }
+.nav a {
+  margin: 0 15px;
+  text-decoration: none;
+  color: black;
+  font-size: 16px;
+}
+
+.nav a:hover {
+  color: #007bff;
+}
+
+.footer {
+  background-color: #f1f1f1;
+  padding: 20px;
+  position: relative;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.contact-us {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.social-media-icons {
+  display: flex;
+  align-items: center;
+  margin-right: 20px;
+}
+
+.copyright {
+  font-size: 14px;
+  color: gray;
+}
+
+.landing-page .social-media-icons p {
+  margin-right: 10px;
+}
+
+.landing-page .social-media-icons a {
+  color: black;
+  margin: 0 10px;
+  font-size: 24px;
+  text-decoration: none;
+}
+
+.landing-page .social-media-icons a:hover {
+  color: #007bff;
+}
